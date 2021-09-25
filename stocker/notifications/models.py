@@ -11,6 +11,10 @@ class CreatedAtModel(models.Model):
     class Meta:
         abstract = True
 
+    def __str__(self):
+        return '{0}(created_at={1})'.format(self.__class__.__name__,
+                                            self.created_at)
+
 
 class TimestampedModel(CreatedAtModel):
     modified_at = models.DateTimeField(auto_now=True)
@@ -26,6 +30,10 @@ class DescriptiveTimestampedModel(TimestampedModel):
     class Meta:
         abstract = True
 
+    def __str__(self):
+        return '{0}(name={1})'.format(self.__class__.__name__,
+                                      self.name)
+
 
 class Exchange(DescriptiveTimestampedModel):
     pass
@@ -36,6 +44,10 @@ class Ticker(DescriptiveTimestampedModel):
     short_name = models.TextField()
     exchange = models.ForeignKey(Exchange, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return '{0}(symbol={1})'.format(self.__class__.__name__,
+                                        self.symbol)
+
 
 class TickerState(CreatedAtModel):
     price = models.DecimalField(max_digits=DECIMAL_MAX_DIGITS,
@@ -43,19 +55,28 @@ class TickerState(CreatedAtModel):
     ticker = models.ForeignKey(Ticker, on_delete=models.CASCADE)
 
 
-class NotificationType(DescriptiveTimestampedModel):
-    pass
-
-
 class Notification(TimestampedModel):
+    class Type(models.TextChoices):
+        EMAIL = 'em', 'Email'
+        PUSH = 'ph', 'Push'
+
     title = models.TextField()
     content = models.TextField()
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    type = models.ForeignKey(NotificationType, on_delete=models.CASCADE)
+    type = models.CharField(
+        max_length=2,
+        choices=Type.choices,
+        default=Type.EMAIL
+    )
     ticker = models.ForeignKey(Ticker, on_delete=models.CASCADE)
 
     class Meta:
         abstract = True
+
+    def __str__(self):
+        return '{0}(title={1},type={2})'.format(self.__class__.__name__,
+                                                self.title,
+                                                self.type)
 
 
 class PriceStepNotification(Notification):
