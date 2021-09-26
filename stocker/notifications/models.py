@@ -1,6 +1,8 @@
 import logging
 from django.db import models
+from django.db.models.signals import post_save
 from django.contrib.auth.models import User
+from django.dispatch import receiver
 
 DECIMAL_MAX_DIGITS = 12
 DECIMAL_PRECISION = 2
@@ -89,6 +91,20 @@ class TickerState(CreatedAtModel):
     bid_size = models.IntegerField()
     ticker = models.ForeignKey(Ticker, on_delete=models.CASCADE)
     currency = models.ForeignKey(Currency, on_delete=models.CASCADE)
+
+
+@receiver(post_save, sender=TickerState)
+def ticker_state_changed(sender: TickerState, **kwargs):
+    ticker_id = sender.ticker_id
+    _logger.info('State changed for ticker ')
+    notifications = PriceStepNotification.objects.filter(ticker_id=ticker_id)
+    for notification in notifications:
+        last_step = PriceStepNotificationState.objects.filter(
+            notification=notification
+        ).order_by('-last_step').first()
+        should_send = last_step.price + notification.step >= sender.price
+        if should_send:
+            print('sending notification...')
 
 
 class Notification(TimestampedModel, TitleContentModel):

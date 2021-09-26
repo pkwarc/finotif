@@ -1,3 +1,6 @@
+stocker/notifications/migrations/*
+start_rabbitmq.sh
+
 # Django #
 *.log
 *.pot
