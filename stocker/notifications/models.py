@@ -3,6 +3,8 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.contrib.auth.models import User
 from django.dispatch import receiver
+from . import tasks
+
 
 DECIMAL_MAX_DIGITS = 12
 DECIMAL_PRECISION = 2
@@ -93,20 +95,6 @@ class TickerState(CreatedAtModel):
     currency = models.ForeignKey(Currency, on_delete=models.CASCADE)
 
 
-@receiver(post_save, sender=TickerState)
-def ticker_state_changed(sender: TickerState, **kwargs):
-    ticker_id = sender.ticker_id
-    _logger.info('State changed for ticker ')
-    notifications = PriceStepNotification.objects.filter(ticker_id=ticker_id)
-    for notification in notifications:
-        last_step = PriceStepNotificationState.objects.filter(
-            notification=notification
-        ).order_by('-last_step').first()
-        should_send = last_step.price + notification.step >= sender.price
-        if should_send:
-            print('sending notification...')
-
-
 class Notification(TimestampedModel, TitleContentModel):
     class Types(models.TextChoices):
         EMAIL = 'em', 'Email'
@@ -119,14 +107,22 @@ class Notification(TimestampedModel, TitleContentModel):
         default=Types.EMAIL
     )
     ticker = models.ForeignKey(Ticker, on_delete=models.CASCADE)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         abstract = True
 
+    def send(self):
+        if self.type == Notification.Types.EMAIL:
+            tasks.send_email.delay(self.user.email, self.title, self.content)
+        elif self.type == Notification.Types.PUSH:
+            tasks.send_push.delay(self.user)
+
     def __str__(self):
-        return 'pk={0},title={1},type={2}'.format(self.pk,
-                                                  self.title,
-                                                  self.type)
+        return 'pk={0},title={1},type={2},is_active={3}'.format(self.pk,
+                                                                self.title,
+                                                                self.type,
+                                                                self.is_active)
 
 
 class PriceStepNotification(Notification):
@@ -155,3 +151,18 @@ class PriceStepNotification(Notification):
 class PriceStepNotificationState(TimestampedModel):
     notification = models.ForeignKey(PriceStepNotification, on_delete=models.CASCADE)
     last_step = models.ForeignKey(TickerState, on_delete=models.CASCADE)
+
+
+@receiver(post_save, sender=TickerState)
+def ticker_state_changed(sender, instance, **kwargs):
+    _logger.info('State changed for ticker ')
+    notifications = PriceStepNotification.objects.filter(ticker=instance.ticker)
+
+    for notification in notifications:
+        last_notification = PriceStepNotificationState.objects.filter(
+            notification=notification
+        ).order_by('-last_step').first()
+        if last_notification:
+            should_send = instance.price >= last_notification.last_step.price + notification.step
+            if should_send:
+                notification.send()
