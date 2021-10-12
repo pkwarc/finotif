@@ -18,12 +18,14 @@ from django.urls import path, include, reverse
 from rest_framework import routers
 from stocker.notifications.views import (
     UserViewSet,
+    TickerViewSet,
     PriceStepNotificationViewSet
 )
 
 router = routers.DefaultRouter()
 router.register(r'user', UserViewSet)
-router.register(r'priceStepNotification', PriceStepNotificationViewSet, 'price-step-notification')
+router.register(r'ticker', TickerViewSet)
+router.register(r'priceStepNotification', PriceStepNotificationViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
