@@ -1,7 +1,10 @@
 import logging
 import pytest
+import datetime
 from unittest import mock
 from django.contrib.auth.models import User
+from ..tasks import request_yahoo_api
+from ..services import TickerStateDto
 from ..models import (
     Exchange,
     Ticker,
@@ -16,20 +19,17 @@ _logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def exchange():
-    return Exchange.objects.create(
-        name='test',
-        description='test exchange'
-    )
+def nasdaq():
+    return Exchange.objects.filter(mic='XNAS').get()
 
 
 @pytest.fixture
-def default_ticker(exchange):
+def default_ticker(nasdaq):
     return Ticker.objects.create(
         symbol='TELL',
         short_name='Tellurian',
         name='Tellurian Inc.',
-        exchange=exchange
+        exchange=nasdaq
     )
 
 
@@ -44,7 +44,7 @@ def user():
 
 @pytest.fixture
 def usd():
-    return Currency.objects.create(symbol='USD')
+    return Currency.objects.filter(symbol='USD').get()
 
 
 @pytest.fixture
@@ -139,9 +139,9 @@ def test_price_changed_but_change_is_too_small_to_send(mock_send,
 
 @pytest.mark.django_db
 @mock.patch('stocker.notifications.models.Notification.send')
-def test_multiple_consecutive_changes_in_price(mock_send,
-                                               price_notification,
-                                               ticker_state):
+def test_multiple_price_changes_when_change_eq_step(mock_send,
+                                                    price_notification,
+                                                    ticker_state):
     # arrange
     number_of_changes = 10
     step = 0.1
@@ -161,3 +161,30 @@ def test_multiple_consecutive_changes_in_price(mock_send,
 
     # assert
     assert mock_send.call_count == number_of_changes
+
+
+@pytest.mark.django_db
+@mock.patch('stocker.notifications.services.YahooTickerProvider.current_state')
+def test_save_requested_ticker_dto_state(mock_current_state, ticker_state, price_notification):
+    # arrange
+    expected_states = 2
+    mock_current_state.return_value = TickerStateDto(
+        price=3.85,
+        ask=3.86,
+        bid=3.84,
+        ask_size=300,
+        bid_size=400,
+        currency='USD'
+    )
+    price_notification(
+        starting_point=ticker_state(price=3),
+        type=Notification.Types.EMAIL,
+        step=0.5
+    )
+
+    # act
+    request_yahoo_api()
+
+    # assert
+    mock_current_state.assert_called_once()
+    assert TickerState.objects.count() == expected_states

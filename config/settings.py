@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/3.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 from celery.schedules import crontab
 
@@ -33,6 +34,8 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'stocker.notifications',
+    'rest_framework',
+    'django_extensions',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -77,8 +80,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'stocker',
+        'USER': 'stocker',
+        'PASSWORD': 'devtest',
+        'HOST': '127.0.0.1',
+        'PORT': '5432',
     }
 }
 
@@ -128,8 +135,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CELERY_BROKER_URL = 'pyamqp://localhost:5672'
 CELERY_BEAT_SCHEDULE = {
-    'query_yahoo_api': {
-        'task': 'stocker.notifications.tasks.query_yahoo_api',
+    'request_yahoo_api': {
+        'task': 'stocker.notifications.tasks.request_yahoo_api',
         'schedule': crontab(minute='*/1')
     }
 }
+
+REST_FRAMEWORK = {
+    'COERCE_DECIMAL_TO_STRING': False
+}
+
+
+

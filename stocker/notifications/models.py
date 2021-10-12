@@ -36,6 +36,7 @@ class DescriptiveModel(models.Model):
 
     class Meta:
         abstract = True
+        ordering = 'name'
 
     def __str__(self):
         return 'pk={0},name={1}'.format(self.pk, self.name)
@@ -54,11 +55,18 @@ class TitleContentModel(models.Model):
 
 
 class Exchange(TimestampedModel, DescriptiveModel):
-    pass
+    """Market hours in the UTC"""
+
+    opens_at = models.TimeField()
+    closes_at = models.TimeField()
+    mic = models.TextField(
+        unique=True,
+        help_text='Market Identifier Code'
+    )
 
 
 class Ticker(TimestampedModel, DescriptiveModel):
-    symbol = models.TextField()
+    symbol = models.TextField(unique=True)
     short_name = models.TextField()
     exchange = models.ForeignKey(Exchange, on_delete=models.CASCADE)
 

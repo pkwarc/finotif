@@ -14,8 +14,19 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include, reverse
+from rest_framework import routers
+from stocker.notifications.views import (
+    UserViewSet,
+    PriceStepNotificationViewSet
+)
+
+router = routers.DefaultRouter()
+router.register(r'user', UserViewSet)
+router.register(r'priceStepNotification', PriceStepNotificationViewSet, 'price-step-notification')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', include(router.urls)),
+    path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
 ]
