@@ -1,15 +1,32 @@
 import logging
 from django.db import models
 from django.db.models.signals import post_save
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from django.dispatch import receiver
+from django.core.validators import validate_email
+from django.utils.translation import gettext_lazy as _
 from . import tasks
-
 
 DECIMAL_MAX_DIGITS = 12
 DECIMAL_PRECISION = 2
 
 _logger = logging.getLogger(__name__)
+
+
+class User(AbstractUser):
+    email = models.CharField(
+        _('email address'),
+        max_length=150,
+        unique=True,
+        help_text=_('Required.'),
+        validators=[validate_email],
+        error_messages={
+            'unique': _("A user with that email already exists."),
+        }
+    )
+
+    class Meta:
+        ordering = 'email',
 
 
 class CreatedAtModel(models.Model):
@@ -36,7 +53,7 @@ class DescriptiveModel(models.Model):
 
     class Meta:
         abstract = True
-        ordering = 'name'
+        ordering = 'name',
 
     def __str__(self):
         return 'pk={0},name={1}'.format(self.pk, self.name)
@@ -48,6 +65,7 @@ class TitleContentModel(models.Model):
 
     class Meta:
         abstract = True
+        ordering = 'title',
 
     def __str__(self):
         return 'pk={0},title={1}'.format(self.pk,
@@ -64,11 +82,17 @@ class Exchange(TimestampedModel, DescriptiveModel):
         help_text='Market Identifier Code'
     )
 
+    class Meta:
+        ordering = 'mic',
+
 
 class Ticker(TimestampedModel, DescriptiveModel):
     symbol = models.TextField(unique=True)
     short_name = models.TextField()
     exchange = models.ForeignKey(Exchange, on_delete=models.CASCADE)
+
+    class Meta:
+        ordering = 'symbol',
 
     def __str__(self):
         return 'pk={0},symbol={1}'.format(self.pk,
@@ -77,7 +101,7 @@ class Ticker(TimestampedModel, DescriptiveModel):
 
 class Note(TimestampedModel, TitleContentModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    ticker = models.ForeignKey(Ticker, on_delete=models.CASCADE)
+    ticker = models.ForeignKey(Ticker, related_name='notes', on_delete=models.CASCADE)
 
     def __str__(self):
         return 'pk={0},title={1}'.format(self.pk,
@@ -127,10 +151,12 @@ class Notification(TimestampedModel, TitleContentModel):
             tasks.send_push.delay(self.user)
 
     def __str__(self):
-        return 'pk={0},title={1},type={2},is_active={3}'.format(self.pk,
-                                                                self.title,
-                                                                self.type,
-                                                                self.is_active)
+        return 'pk={0},title={1},type={2},is_active={3}'.format(
+            self.pk,
+            self.title,
+            self.type,
+            self.is_active
+        )
 
 
 class PriceStepNotification(Notification):

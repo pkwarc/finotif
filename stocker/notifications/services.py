@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from yfinance import utils
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.exceptions import (
     APIException,
@@ -152,6 +152,7 @@ def save_ticker_state(ticker, state: TickerStateDto):
 
 def create_price_step_notification(data: dict, provider=None):
     from .models import PriceStepNotification
+    User = get_user_model()
     symbol = data['symbol']
     exchange_mic = data['exchange']
     if not provider:

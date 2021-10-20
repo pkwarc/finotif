@@ -1,23 +1,43 @@
-from django.contrib.auth.models import User
 from rest_framework import (
     serializers,
 )
 from .models import (
+    User,
     Ticker,
     PriceStepNotification,
+    Note
 )
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
+
     class Meta:
         model = User
-        fields = ['url', 'username', 'email']
+        fields = ['id', 'url', 'username', 'email', 'password']
+        extra_kwargs = {
+            'email': {'required': True},
+            'password': {'write_only': True, 'min_length': 6}
+        }
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            username=validated_data['username'],
+            password=validated_data['password']
+        )
+        return user
 
 
 class TickerSerializer(serializers.HyperlinkedModelSerializer):
+    notes = serializers.HyperlinkedRelatedField(
+        view_name='note-detail',
+        many=True,
+        read_only=True
+    )
+
     class Meta:
         model = Ticker
-        fields = ['url', 'symbol', 'short_name', 'name', 'description']
+        fields = ['id', 'url', 'symbol', 'short_name', 'name', 'description', 'notes']
 
 
 class PriceStepNotificationSerializer(serializers.HyperlinkedModelSerializer):
@@ -37,8 +57,16 @@ class PriceStepNotificationCreateSerializer(serializers.ModelSerializer):
         model = PriceStepNotification
         fields = ['title', 'content', 'is_active', 'type', 'exchange',
                   'symbol', 'step', 'user']
-        required_field = True
         extra_kwargs = {
             'is_active': {'required': True},
             'type': {'required': True}
         }
+
+
+class NoteSerializer(serializers.HyperlinkedModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = Note
+        fields = ['id', 'url', 'title', 'content', 'ticker', 'created_at',
+                  'modified_at', 'user']
