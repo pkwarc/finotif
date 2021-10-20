@@ -1,87 +1,15 @@
 import logging
 import pytest
-import datetime
 from unittest import mock
-from django.contrib.auth.models import User
 from ..tasks import request_yahoo_api
 from ..services import TickerStateDto
 from ..models import (
-    Exchange,
-    Ticker,
     TickerState,
     Notification,
-    PriceStepNotification,
     PriceStepNotificationState,
-    Currency,
 )
 
 _logger = logging.getLogger(__name__)
-
-
-@pytest.fixture
-def nasdaq():
-    return Exchange.objects.filter(mic='XNAS').get()
-
-
-@pytest.fixture
-def default_ticker(nasdaq):
-    return Ticker.objects.create(
-        symbol='TELL',
-        short_name='Tellurian',
-        name='Tellurian Inc.',
-        exchange=nasdaq
-    )
-
-
-@pytest.fixture
-def user():
-    return User.objects.create_user(
-        username='Testname',
-        email='testemail@test.com',
-        password='test123!RF'
-    )
-
-
-@pytest.fixture
-def usd():
-    return Currency.objects.filter(symbol='USD').get()
-
-
-@pytest.fixture
-def ticker_state(usd, default_ticker):
-    def _produce(price=10.0, ask=11.0, bid=9.0, ask_size=3000,
-                 bid_size=4000, currency=usd, ticker=default_ticker):
-        return TickerState.objects.create(
-            price=price,
-            ask=ask,
-            bid=bid,
-            ask_size=ask_size,
-            bid_size=bid_size,
-            currency=currency,
-            ticker=ticker
-        )
-
-    return _produce
-
-
-@pytest.fixture
-def price_notification(default_ticker, user):
-    default_title = default_ticker.name + ' price changed',
-    default_content = 'Some content about' + default_ticker.name
-
-    def _produce(starting_point, type, step, ticker=default_ticker,
-                 title=default_title, content=default_content):
-        return PriceStepNotification.create(
-            starting_point=starting_point,
-            type=type,
-            user=user,
-            ticker=ticker,
-            title=title,
-            content=content,
-            step=step
-        )
-
-    return _produce
 
 
 @pytest.mark.django_db
