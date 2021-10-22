@@ -1,7 +1,8 @@
+from django.core import mail
 from celery import shared_task
 from celery.utils.log import get_task_logger
-from django.db.models import F
 from .services import YahooTickerProvider
+from .apps import NotificationsConfig as conf
 
 _logger = get_task_logger(__name__)
 
@@ -9,6 +10,13 @@ _logger = get_task_logger(__name__)
 @shared_task
 def send_email(to: str, subject: str, content: str):
     _logger.info('Sending email to {0}'.format(to))
+    mail.send_mail(
+        subject,
+        content,
+        conf.EMAIL_FROM
+        [to],
+        fail_silently=False
+    )
 
 
 @shared_task
@@ -26,11 +34,14 @@ def request_yahoo_api():
     _logger.info('In request_yahoo_api...')
 
     tickers = (Ticker.objects
+               .select_related('exchange')
                .filter(pricestepnotification__is_active=True)
                .distinct())
     currencies = Currency.objects.all()
     symbol_currency = {currency.symbol: currency for currency in currencies}
     for ticker in tickers:
+        if not ticker.exchange.is_open():
+            continue
         symbol = ticker.symbol
         provider = YahooTickerProvider(symbol)
         state = provider.current_state()

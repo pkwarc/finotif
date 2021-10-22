@@ -1,9 +1,11 @@
 import logging
 import pytest
+from datetime import datetime, time
 from unittest import mock
 from ..tasks import request_yahoo_api
 from ..services import TickerStateDto
 from ..models import (
+    Exchange,
     TickerState,
     Notification,
     PriceStepNotificationState,
@@ -116,3 +118,35 @@ def test_save_requested_ticker_dto_state(mock_current_state, ticker_state, price
     # assert
     mock_current_state.assert_called_once()
     assert TickerState.objects.count() == expected_states
+
+
+@pytest.mark.parametrize(
+    ['opens_at', 'closes_at', 'current_time', 'is_open'],
+    [
+        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=14, minute=30), True),
+        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=18, minute=30), True),
+        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=21, minute=30), True),
+        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=14, minute=29), False),
+        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=21, minute=31), False),
+        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=0, minute=0), False),
+    ]
+)
+@pytest.mark.django_db
+@mock.patch('stocker.notifications.models.datetime')
+def test_exchange_is_open(datetime_mock, opens_at, closes_at, current_time, is_open):
+    test_time = datetime.utcnow()
+    datetime_mock.utcnow.return_value = test_time.replace(
+        hour=current_time.hour,
+        minute=current_time.minute,
+        second=current_time.second,
+        microsecond=0
+    )
+    exchange = Exchange(
+        name='TEST',
+        mic='TST',
+        opens_at=opens_at,
+        closes_at=closes_at
+    )
+    exchange.save()
+    is_open_result = exchange.is_open()
+    assert exchange.is_open() == is_open

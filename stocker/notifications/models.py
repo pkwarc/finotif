@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from django.db import models
 from django.db.models.signals import post_save
 from django.contrib.auth.models import AbstractUser
@@ -84,6 +85,10 @@ class Exchange(TimestampedModel, DescriptiveModel):
 
     class Meta:
         ordering = 'mic',
+
+    def is_open(self):
+        time = datetime.utcnow().time()
+        return self.opens_at <= time <= self.closes_at
 
 
 class Ticker(TimestampedModel, DescriptiveModel):
