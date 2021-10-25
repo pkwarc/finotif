@@ -1,6 +1,11 @@
 import logging
 import pytest
-from datetime import datetime, time
+from datetime import (
+    datetime as DateTime,
+    time as Time,
+    timedelta as TimeDelta,
+    timezone as TimeZone,
+)
 from unittest import mock
 from ..tasks import request_yahoo_api
 from ..services import TickerStateDto
@@ -94,10 +99,13 @@ def test_multiple_price_changes_when_change_eq_step(mock_send,
 
 
 @pytest.mark.django_db
+@mock.patch('stocker.notifications.models.Exchange.is_open')
 @mock.patch('stocker.notifications.services.YahooTickerProvider.current_state')
-def test_save_requested_ticker_dto_state(mock_current_state, ticker_state, price_notification):
+def test_save_requested_ticker_dto_state(mock_current_state, mock_is_open, ticker_state, price_notification):
     # arrange
     expected_states = 2
+    mock_is_open.return_value = True
+    # mock call to the external api
     mock_current_state.return_value = TickerStateDto(
         price=3.85,
         ask=3.86,
@@ -123,19 +131,21 @@ def test_save_requested_ticker_dto_state(mock_current_state, ticker_state, price
 @pytest.mark.parametrize(
     ['opens_at', 'closes_at', 'current_time', 'is_open'],
     [
-        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=14, minute=30), True),
-        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=18, minute=30), True),
-        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=21, minute=30), True),
-        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=14, minute=29), False),
-        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=21, minute=31), False),
-        (time(hour=14, minute=30), time(hour=21, minute=30), time(hour=0, minute=0), False),
+        (Time(hour=14, minute=30), Time(hour=21, minute=30), Time(hour=14, minute=30), True),
+        (Time(hour=14, minute=30), Time(hour=21, minute=30), Time(hour=18, minute=30), True),
+        (Time(hour=14, minute=30), Time(hour=21, minute=30), Time(hour=21, minute=30), True),
+        (Time(hour=14, minute=30), Time(hour=21, minute=30), Time(hour=14, minute=29), False),
+        (Time(hour=14, minute=30), Time(hour=21, minute=30), Time(hour=21, minute=31), False),
+        (Time(hour=14, minute=30), Time(hour=21, minute=30), Time(hour=0, minute=0), False),
     ]
 )
 @pytest.mark.django_db
 @mock.patch('stocker.notifications.models.datetime')
-def test_exchange_is_open(datetime_mock, opens_at, closes_at, current_time, is_open):
-    test_time = datetime.utcnow()
-    datetime_mock.utcnow.return_value = test_time.replace(
+def test_exchange_is_open_at_time(mock_datetime, opens_at, closes_at, current_time, is_open):
+    # any work day
+    test_time = DateTime(year=2021, month=11, day=1, hour=15, minute=30,
+                         tzinfo=TimeZone.utc)
+    mock_datetime.utcnow.return_value = test_time.replace(
         hour=current_time.hour,
         minute=current_time.minute,
         second=current_time.second,
@@ -148,5 +158,25 @@ def test_exchange_is_open(datetime_mock, opens_at, closes_at, current_time, is_o
         closes_at=closes_at
     )
     exchange.save()
-    is_open_result = exchange.is_open()
     assert exchange.is_open() == is_open
+
+
+@pytest.mark.django_db
+@mock.patch('stocker.notifications.models.datetime')
+def test_exchange_is_open_on_weekday(datetime_mock, nasdaq):
+    def exchange_week_iterate(start, stop, assert_open):
+        some_monday = DateTime(year=2021, month=11, day=1, hour=15, minute=30,
+                               tzinfo=TimeZone.utc)
+        for day_number in range(start, stop):
+            next_day = some_monday + TimeDelta(days=day_number)
+            datetime_mock.utcnow.return_value = next_day
+            is_open = nasdaq.is_open()
+            assert nasdaq.is_open() == assert_open
+
+    # monday friday
+    work_week = (0, 5)
+    exchange_week_iterate(*work_week, True)
+
+    # saturday, sunday
+    weekend = (5, 7)
+    exchange_week_iterate(*weekend, False)

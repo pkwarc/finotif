@@ -31,7 +31,6 @@ def request_yahoo_api():
         Ticker,
         TickerState,
     )
-    _logger.info('In request_yahoo_api...')
 
     tickers = (Ticker.objects
                .select_related('exchange')

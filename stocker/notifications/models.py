@@ -87,6 +87,10 @@ class Exchange(TimestampedModel, DescriptiveModel):
         ordering = 'mic',
 
     def is_open(self):
+        now = datetime.utcnow()
+
+        if now.weekday() in (5, 6):
+            return False
         time = datetime.utcnow().time()
         return self.opens_at <= time <= self.closes_at
 

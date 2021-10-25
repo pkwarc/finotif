@@ -6,7 +6,7 @@ from functools import reduce
 from rest_framework.reverse import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from ..models import PriceStepNotification, User
+from ..models import PriceStepNotification, User, Note
 
 TEST_SERVER = 'http://testserver'
 _logger = logging.getLogger(__name__)
@@ -33,112 +33,122 @@ def test_if_not_loggedin_then_unauthorized(client, url):
 
 
 @pytest.mark.django_db
-def test_ensure_users_see_only_what_they_own(client, user):
-    # Create two users
-    password = user.PASSWORD
-    user0 = user.get()
-    user1 = user.get()
-    assert user0.pk != user1.pk
-    set_client_jwt(client, user0.username, password)
-    user_list0 = json.loads(client.get(reverse('user-list')).content)
-    set_client_jwt(client, user1.username, password)
-    user_list1 = json.loads(client.get(reverse('user-list')).content)
-    assert len(user_list0['results']) == 1
-    assert len(user_list1['results']) == 1
-
-
-@pytest.mark.django_db
 def test_api_workflow(client: APIClient):
-    # Register a user
-    user_data = {
-        'username': 'testuser',
-        'password': 'test_pass_32!3',
-        'email': 'testuser@email.com',
-    }
-    username = user_data['username']
-    password = user_data['password']
-    response = client.post(reverse('user-list'), user_data, format='json')
+    def user_workflow(username, password, email):
+        # User registers
+        user_data = {
+            'username': username,
+            'password': password,
+            'email': email,
+        }
 
-    assert response.status_code == status.HTTP_201_CREATED
-    user_body = json.loads(response.content)
-    assert (
-        'password' not in user_body
-        and username == user_body['username']
-        and user_data['email'] == user_body['email']
-    )
+        response = client.post(reverse('user-list'), user_data, format='json')
 
-    # User login, obtain JWT
-    set_client_jwt(client, username, password)
+        user_details = json.loads(response.content)
+        user = User.objects.get(email=email)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert (
+            'password' not in user_details
+            and username == user_details['username']
+            and email == user_details['email']
+        )
 
-    # Create a notification that is going to be send
-    # every time TELL goes up or down by 0.5 USD
-    notification_data = {
-        'symbol': 'TELL',
-        'step': 0.5,
-        'title': 'TELL\'s price changed',
-        'content': 'TELL\'s price changed',
-        'exchange': 'XNAS',
-        'type': 'em',
-        'is_active': True,
-    }
+        # User signs in (obtains JWT)
+        response = client.post(
+            reverse('token_obtain_pair'),
+            {'username': username, 'password': password},
+            format='json',
+        )
 
-    response = client.post(
-        reverse('pricestepnotification-list'), notification_data, format='json'
-    )
+        assert response.status_code == status.HTTP_200_OK
+        credentials = json.loads(response.content)
+        token = credentials['access']
+        assert token
+        assert credentials['refresh']
+        client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
 
-    assert response.status_code == status.HTTP_201_CREATED
-    data_got = json.loads(response.content)
-    notification = PriceStepNotification.objects.first()
-    assert notification
-    url_want = url_join(
-        TEST_SERVER, reverse('pricestepnotification-list'), str(notification.id)
-    )
-    assert (
-        response.status_code == status.HTTP_201_CREATED
-        and data_got['step'] == notification_data['step']
-        and data_got['title'] == notification_data['title']
-        and data_got['type'] == notification_data['type']
-        and data_got['is_active'] == notification_data['is_active']
-        and data_got['url'] == url_want
-    )
+        # User tries to get their data
+        response = client.get(reverse('user-list'), format='json')
+        user_list = json.loads(response.content)
 
-    # Retrieve a list of tickers
-    response = client.get(reverse('ticker-list'))
-    ticker_list = json.loads(response.content)
-    assert response.status_code == status.HTTP_200_OK
-    assert ticker_list['results']
-    tell = ticker_list['results'][0]
+        # Ensure users can only get their own data
+        assert (
+            # has to be exactly one
+            len(user_list['results']) == 1
+            and user_list['results'][0]['email'] == email
+            and user_list['results'][0]['date_joined']
+        )
 
-    # Create a note for the TELL ticker
-    response = client.post(
-        reverse('note-list'),
-        {
-            'title': 'A very important note',
-            'content': 'Important content',
-            'ticker': tell['url'],
-        },
-        format='json',
-    )
-    note_got = json.loads(response.content)
-    assert response.status_code == status.HTTP_201_CREATED
-    assert note_got['url']
+        # User creates a notification that is going to be send
+        # every time TELL goes up or down by 0.5 USD
+        notification_data = {
+            'symbol': 'TELL',
+            'step': 0.5,
+            'title': 'TELL\'s price changed',
+            'content': 'TELL\'s price changed',
+            'exchange': 'XNAS',
+            'type': 'em',
+            'is_active': True,
+        }
 
+        response = client.post(
+            reverse('pricestepnotification-list'), notification_data, format='json'
+        )
 
-def set_client_jwt(client, username, password, intention='access'):
-    """Retrieves JWT and sets the client's authorization bearer header"""
-    intentions = ['access', 'refresh']
-    if intention not in intentions:
-        raise ValueError('Unsupported intention, available are ' + str(intentions))
-    response = client.post(
-        reverse('token_obtain_pair'),
-        {'username': username, 'password': password},
-        format='json',
-    )
-    assert response.status_code == status.HTTP_200_OK
-    credentials = json.loads(response.content)
-    for temp_intention in intentions:
-        assert credentials[temp_intention]
-    client.credentials(HTTP_AUTHORIZATION='Bearer ' + credentials[intention])
+        assert response.status_code == status.HTTP_201_CREATED
+        notification = PriceStepNotification.objects.get(user=user)
+        expected_url = url_join(
+            TEST_SERVER, reverse('pricestepnotification-list'), str(notification.id)
+        )
+        data_got = json.loads(response.content)
+        assert (
+            response.status_code == status.HTTP_201_CREATED
+            and data_got['step'] == notification_data['step']
+            and data_got['title'] == notification_data['title']
+            and data_got['type'] == notification_data['type']
+            and data_got['is_active'] == notification_data['is_active']
+            and data_got['url'] == expected_url
+            and data_got['created_at']
+            and data_got['modified_at']
+        )
+
+        # User retrieves a list of tickers
+        response = client.get(reverse('ticker-list'))
+        ticker_list = json.loads(response.content)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(ticker_list['results']) == 1
+        tell = ticker_list['results'][0]
+
+        # User creates a note to the ticker
+        response = client.post(
+            reverse('note-list'),
+            {
+                'title': 'A very important note',
+                'content': 'Important content',
+                'ticker': tell['url'],
+            },
+            format='json',
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        note_got = json.loads(response.content)
+        note = Note.objects.get(user=user)
+        expected_url = url_join(
+            TEST_SERVER, reverse('note-list'), str(note.id)
+        )
+        assert (
+            note_got['url'] == expected_url
+            and note_got['title'] == note.title
+            and note_got['content'] == note.content
+            and note_got['created_at']
+            and note_got['modified_at']
+        )
+
+    # At least two users in order to ensure that no user can
+    # access others' data
+    user_workflow('user0', 'user0Te$tPass', 'user0@email.com')
+    user_workflow('user1', 'user1Te$tPass', 'user1@email.com')
+    user_workflow('user2', 'user2Te$tPass', 'user2@email.com')
 
 
 def url_join(*args):
