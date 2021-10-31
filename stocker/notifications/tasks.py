@@ -2,26 +2,25 @@ from django.core import mail
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from .services import YahooTickerProvider
-from .apps import NotificationsConfig as conf
 
 _logger = get_task_logger(__name__)
 
 
 @shared_task
 def send_email(to: str, subject: str, content: str):
-    _logger.info('Sending email to {0}'.format(to))
-    mail.send_mail(
-        subject,
-        content,
-        conf.EMAIL_FROM
-        [to],
+    result = mail.send_mail(
+        subject=subject,
+        message=content,
+        from_email=None,
+        recipient_list=[to],
         fail_silently=False
     )
+    _logger.info(f'Sending email to = {to}, result={result}')
 
 
 @shared_task
-def send_push(to):
-    _logger.info('Sending push to {0}'.format(to))
+def send_push(to: str):
+    _logger.info(f'No push sent to {to}')
 
 
 @shared_task

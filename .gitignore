@@ -1,3 +1,4 @@
+staticfiles
 stocker/notifications/migrations/*
 start_rabbitmq.sh
 
