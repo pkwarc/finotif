@@ -13,5 +13,4 @@ jobs:
         run: docker-compose --env-file ./.github/.env.github up -d
       - name: Run pytest
         run: |
-          docker-compose exec app /bin/bash
-          pytest
+          docker-compose exec -T app pytest
