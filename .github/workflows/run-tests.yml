@@ -12,4 +12,6 @@ jobs:
       - name: Build and run docker images
         run: docker-compose --env-file ./.github/.env.github up -d
       - name: Run pytest
-        run: docker-compose exec app pytest
+        run: |
+          docker-compose exec app /bin/bash
+          pytest
