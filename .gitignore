@@ -1,5 +1,4 @@
 staticfiles
-stocker/notifications/migrations/*
 start_rabbitmq.sh
 
 # Django #
@@ -13,8 +12,9 @@ media
 # Backup files # 
 *.bak 
 
-# If you are using PyCharm # 
-.idea/**/workspace.xml 
+.idea
+# If you are using PyCharm #
+.idea/**/workspace.xml
 .idea/**/tasks.xml 
 .idea/dictionaries 
 .idea/**/dataSources/ 

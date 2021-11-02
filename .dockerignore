@@ -26,5 +26,4 @@ venv
 .vscode
 .idea
 
-**migrations/*
 .env
