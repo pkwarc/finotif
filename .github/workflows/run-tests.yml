@@ -9,7 +9,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Build docker images
-        run: docker-compose build
-      - name: Run the containers
-        run: docker-compose up -d
+      - name: Build and run docker images
+        run: docker-compose --env-file ./.github/.env.github up -d
+      - name: Run pytest
+        run: docker-compose exec app pytest

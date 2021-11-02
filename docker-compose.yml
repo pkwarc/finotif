@@ -7,12 +7,10 @@ services:
       - db_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_NAME=${POSTGRES_NAME}
+      - POSTGRES_DB=${POSTGRES_NAME}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
-      - BROKER_HOST=${BROKER_HOST}
-      - BROKER_PORT=${BROKER_PORT}
   rabbitmq:
     image: rabbitmq:${BROKER_TAG}
     expose:
@@ -39,6 +37,8 @@ services:
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
+      - BROKER_HOST=${BROKER_HOST}
+      - BROKER_PORT=${BROKER_PORT}
     depends_on:
       - postgres
   nginx:
