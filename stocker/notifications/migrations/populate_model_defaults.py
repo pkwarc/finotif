@@ -22,9 +22,6 @@ def populate_currency(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ('notifications', 'initial'),
-    ]
 
     operations = [
         migrations.RunPython(populate_exchange),
