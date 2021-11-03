@@ -15,7 +15,7 @@ jobs:
       - name: Build images and run the app
         run: docker-compose --env-file ./.github/.env.github up -d
       - name: Stop and remove containers
-        run: docker-compose down --volumes
+        run: docker-compose --env-file ./.github/.env.github down --volumes
       - name: Run tests
         run: docker-compose --env-file ./.github/.env.github run app test
       - name: Setup docker
