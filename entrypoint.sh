@@ -18,7 +18,11 @@ if [ "$1" = "runserver" ]; then
   python manage.py migrate --no-input
 
 
-  gunicorn --bind 0.0.0.0:$APP_PORT --capture-output --access-logfile '-' --errror-logfile '-' config.wsgi:application
+  gunicorn --bind 0.0.0.0:$APP_PORT \
+    --capture-output                \
+    --access-logfile '-'            \
+    --error-logfile '-'             \
+    config.wsgi:application
 elif [ "$1" = 'test' ]; then
     pytest
 elif [ "$1" = 'test' ]; then
