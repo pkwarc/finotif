@@ -16,6 +16,7 @@ services:
     expose:
       - "${BROKER_PORT}"
   app:
+    image: pkwarc/stocker:latest
     build:
       context: .
       args:

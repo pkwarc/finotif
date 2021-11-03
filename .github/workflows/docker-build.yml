@@ -21,4 +21,4 @@ jobs:
       - name: Setup docker
         run: docker login --username=$DOCKER_USER --password=$DOCKER_PASS
       - name: Push images to the dockerhub
-        run: docker-compose push
+        run: docker-compose --env-file ./.github/.env.github push
