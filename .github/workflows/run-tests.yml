@@ -15,7 +15,7 @@ jobs:
       - name: Build and run docker images
         run: docker-compose --env-file ./.github/.env.github up -d
       - name: Run tests
-        run: docker-compose run app test
+        run: docker-compose --env-file ./.github/.env.github run app test
       - name: Setup docker
         run: docker login --username=$DOCKER_USER --password=$DOCKER_PASS
       - name: Push images to the dockerhub
