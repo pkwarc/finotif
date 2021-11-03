@@ -41,7 +41,8 @@ services:
       - BROKER_PORT=${BROKER_PORT}
     command: runserver
     depends_on:
-      - postgres
+      - "postgres"
+      - "rabbitmq"
   nginx:
     build: ./nginx
     volumes:
