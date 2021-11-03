@@ -12,8 +12,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Build and run docker images
-        run: docker-compose --env-file ./.github/.env.github run -d app runserver
+      - name: Build images and run the app
+        run: docker-compose --env-file ./.github/.env.github up -d
+      - name: Stop and remove containers
+        run: docker-compose down --volumes
       - name: Run tests
         run: docker-compose --env-file ./.github/.env.github run app test
       - name: Setup docker
