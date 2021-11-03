@@ -25,9 +25,7 @@ if [ "$1" = 'runserver' ]; then
     config.wsgi:application
 elif [ "$1" = 'test' ]; then
     python manage.py collectstatic --no-input
-    python manage.py makemigrations notifications --no-input
     python manage.py migrate --no-input
-
     pytest
 elif [ "$1" = 'manage' ]; then
   python manage.py "${@:2}"

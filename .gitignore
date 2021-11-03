@@ -1,6 +1,4 @@
 staticfiles
-stocker/notifications/migrations/*
-!stocker/notifications/migrations/populate_model_defaults.py
 start_rabbitmq.sh
 
 # Django #
