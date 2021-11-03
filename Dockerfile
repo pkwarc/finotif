@@ -19,4 +19,4 @@ COPY . /var/www/app
 
 RUN ["chmod", "+x", "./entrypoint.sh"]
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ./entrypoint.sh $0 $@

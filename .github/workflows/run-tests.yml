@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Build and run docker images
-        run: docker-compose --env-file ./.github/.env.github up -d
+        run: docker-compose --env-file ./.github/.env.github run app runserver -d
       - name: Run tests
         run: docker-compose --env-file ./.github/.env.github run app test
       - name: Setup docker

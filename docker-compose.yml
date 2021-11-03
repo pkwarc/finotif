@@ -39,6 +39,7 @@ services:
       - EMAIL_PORT=${EMAIL_PORT}
       - BROKER_HOST=${BROKER_HOST}
       - BROKER_PORT=${BROKER_PORT}
+    command: runserver
     depends_on:
       - postgres
   nginx:
