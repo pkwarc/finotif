@@ -1,7 +1,7 @@
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from .models import User, Ticker, PriceStepNotification, Note
+from .models import User, Ticker, StepNotification, Note
 from .serializers import (
     UserSerializer,
     TickerSerializer,
@@ -41,7 +41,7 @@ class PriceStepNotificationViewSet(viewsets.ModelViewSet):
     }
 
     def get_queryset(self):
-        return PriceStepNotification.objects.all().filter(user=self.request.user)
+        return StepNotification.objects.all().filter(user=self.request.user)
 
     def get_serializer_class(self):
         return self.serializers.get(self.action, self.default_serializer)

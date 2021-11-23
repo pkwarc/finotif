@@ -2,11 +2,8 @@ import logging
 from dataclasses import dataclass
 from yfinance import utils
 from django.contrib.auth.models import AbstractUser
-from rest_framework import status
-from rest_framework.exceptions import (
-    APIException,
-    ValidationError,
-)
+from typing import Optional
+
 
 _logger = logging.getLogger(__name__)
 
@@ -20,14 +17,6 @@ class TickerStateDto:
     ask_size: float = 0
     bid_size: float = 0
 
-    def is_valid(self) -> bool:
-        return (self.price > 0
-                and self.ask > 0
-                and self.bid > 0
-                and self.ask_size > 0
-                and self.bid_size > 0
-                and self.currency)
-
 
 @dataclass(frozen=True)
 class TickerDto:
@@ -36,14 +25,7 @@ class TickerDto:
     short_name: str = ''
     description: str = ''
     exchange: str = ''
-    state: TickerStateDto = TickerStateDto()
-
-    def is_valid(self) -> bool:
-        return (self.symbol
-                and self.name
-                and self.short_name
-                and self.exchange
-                and self.state.is_valid())
+    state: TickerStateDto = None
 
 
 class YahooTickerProvider:
@@ -51,10 +33,9 @@ class YahooTickerProvider:
     def __init__(self, symbol: str):
         self._base_url = 'https://query2.finance.yahoo.com'
         self._scrape_url = 'https://finance.yahoo.com/quote'
-        self._symbol = symbol.upper()
-        self._cached = None
+        self._symbol = symbol.strip().upper()
 
-    def _request_data_ticker(self) -> TickerDto:
+    def _request_data_ticker(self):
         ticker_url = f'{self._scrape_url}/{self._symbol}'
         _logger.info('Requesting {0}...'.format(ticker_url))
         data = utils.get_json(ticker_url)
@@ -81,91 +62,18 @@ class YahooTickerProvider:
             except KeyError:
                 msg = f'Error during parsing {self!r}'
                 _logger.error(msg + f' {data!r}')
-        return TickerDto()
+        return None
 
-    def info(self) -> TickerDto:
-        if self._cached:
-            return self._cached
-        else:
-            self._cached = self._request_data_ticker()
-            return self._cached
+    def info(self) -> Optional[TickerDto]:
+        return self._request_data_ticker()
 
-    def current_state(self, refresh=True) -> TickerStateDto:
-        if refresh:
-            return self._request_data_ticker().state
+    def current_state(self) -> Optional[TickerStateDto]:
+        data = self._request_data_ticker()
+        if data:
+            return data.state
         else:
-            return self.info().state
+            return None
 
     def __repr__(self):
         return f'services.{self.__class__.__name__}({self._symbol})'
 
-
-def get_or_create_ticker(symbol: str, exchange_mic: str, provider=None):
-    from .models import (
-        Ticker,
-        Exchange
-    )
-    if not provider:
-        provider = YahooTickerProvider(symbol=symbol)
-    try:
-        exchange = Exchange.objects.filter(mic=exchange_mic).get()
-    except Exchange.DoesNotExist:
-        raise ValidationError(('Market Identifier Code (MIC) '
-                               f'"{exchange_mic}" is not supported'))
-    ticker = Ticker.objects.filter(
-        symbol=symbol.upper().strip()
-    ).first()
-    if ticker is None:
-        ticker_info = provider.info()
-        if ticker_info.is_valid():
-            ticker = Ticker(
-                symbol=ticker_info.symbol.upper().strip(),
-                short_name=ticker_info.short_name,
-                name=ticker_info.name,
-                description=ticker_info.description,
-                exchange=exchange
-            )
-            ticker.save()
-        else:
-            raise APIException(
-                status.HTTP_404_NOT_FOUND,
-                f'Ticker {symbol} does not exist'
-            )
-    return ticker
-
-
-def save_ticker_state(ticker, state: TickerStateDto):
-    from .models import TickerState, Currency
-    currencies = Currency.objects.all()
-    symbol_currency = {currency.symbol: currency for currency in currencies}
-    current_state = TickerState.objects.create(
-        ticker=ticker,
-        price=state.price,
-        ask=state.ask,
-        bid=state.bid,
-        ask_size=state.ask_size,
-        bid_size=state.bid_size,
-        currency=symbol_currency[state.currency]
-    )
-    return current_state
-
-
-def create_price_step_notification(user: AbstractUser, data: dict, provider=None):
-    from .models import PriceStepNotification
-    symbol = data['symbol']
-    exchange_mic = data['exchange']
-    if not provider:
-        provider = YahooTickerProvider(symbol=symbol)
-    ticker = get_or_create_ticker(symbol, exchange_mic, provider)
-    last_state = save_ticker_state(ticker, provider.current_state(refresh=False))
-    notification = PriceStepNotification.create(
-        starting_point=last_state,
-        title=data['title'],
-        content=data['content'],
-        type=data['type'],
-        is_active=data['is_active'],
-        step=data['step'],
-        ticker=ticker,
-        user=user
-    )
-    return notification

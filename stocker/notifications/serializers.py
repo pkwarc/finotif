@@ -4,7 +4,8 @@ from rest_framework import (
 from .models import (
     User,
     Ticker,
-    PriceStepNotification,
+    Notification,
+    StepNotification,
     Note
 )
 
@@ -44,9 +45,9 @@ class TickerSerializer(serializers.HyperlinkedModelSerializer):
 class PriceStepNotificationSerializer(serializers.HyperlinkedModelSerializer):
 
     class Meta:
-        model = PriceStepNotification
+        model = StepNotification
         fields = ['id', 'url', 'title', 'content', 'ticker', 'type',
-                  'is_active', 'step', 'created_at', 'modified_at']
+                  'is_active', 'value', 'created_at', 'modified_at']
 
 
 class PriceStepNotificationCreateSerializer(serializers.ModelSerializer):
@@ -55,9 +56,9 @@ class PriceStepNotificationCreateSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
-        model = PriceStepNotification
+        model = StepNotification
         fields = ['title', 'content', 'is_active', 'type', 'exchange',
-                  'symbol', 'step', 'user']
+                  'symbol', 'value', 'user']
         extra_kwargs = {
             'is_active': {'required': True},
             'type': {'required': True}

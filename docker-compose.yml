@@ -52,7 +52,7 @@ services:
   celery:
     image: pkwarc/stocker-celery:latest
     build:
-      context: .
+      context: python_docker/Dockerfile
       args:
         - POETRY_VERSION=${POETRY_VERSION}
     environment:
