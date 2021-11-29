@@ -147,16 +147,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 BROKER_HOST = os.environ.get("BROKER_HOST")
 BROKER_PORT = os.environ.get("BROKER_PORT")
 
-CELERY_BROKER_URL = f'pyamqp://{BROKER_HOST}:{BROKER_PORT}'
+CELERY_BROKER_URL = f'redis://{BROKER_HOST}:{BROKER_PORT}'
 CELERY_BEAT_SCHEDULE = {
     'request_yahoo_api': {
         'task': 'finotif.notifications.tasks.request_yahoo_api',
         'schedule': crontab(minute='*/1')
     },
-    'send_interval_notifications': {
-        'task': 'finotif.notifications.tasks.send_interval_notifications',
-        'schedule': crontab(minute='*/1')
-    }
 }
 
 REST_FRAMEWORK = {

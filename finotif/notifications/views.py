@@ -35,8 +35,10 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class TickerViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated]
-    queryset = Ticker.objects.all()
     serializer_class = TickerSerializer
+
+    def get_queryset(self):
+        return Ticker.objects.filter(stepnotification__user_id=self.request.user)
 
 
 class StepNotificationViewSet(viewsets.ModelViewSet):

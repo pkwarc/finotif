@@ -6,7 +6,6 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import validate_email
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-from .apps import NotificationsConfig as conf
 from .services import (
     YahooTickerProvider as TickerProvider,
     TickerStateDto

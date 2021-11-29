@@ -17,10 +17,12 @@ services:
       - "${APP_PORT:-8080}:${APP_PORT:-8080}"
     volumes:
       - ./:/app
-  celery:
-    command: /bin/true
+  redis:
+    ports:
+      - "${BROKER_PORT:-6379}:${BROKER_PORT:-6379}"
   nginx:
     command: /bin/true
+    restart: "no"
 
 volumes:
   db_data_dev:

@@ -3,6 +3,7 @@ import logging
 import pytest
 import urllib.parse
 from functools import reduce
+from unittest import mock
 from rest_framework.reverse import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -13,6 +14,7 @@ from ..models import (
     User,
     Note
 )
+from ..services import TickerDto
 
 TEST_SERVER = 'http://testserver'
 _logger = logging.getLogger(__name__)
@@ -39,8 +41,11 @@ def test_if_not_loggedin_then_unauthorized(client, url):
 
 
 @pytest.mark.django_db
-def test_api_workflow(client: APIClient):
-    def user_workflow(username, password, email):
+@mock.patch('finotif.notifications.models.TickerProvider.info')
+def test_api_workflow(mock_info, client):
+    def user_workflow(username, password, email, info):
+        # Mock the call to any external api:
+        mock_info.return_value = info
         # User registers
         user_data = {
             'username': username,
@@ -86,15 +91,15 @@ def test_api_workflow(client: APIClient):
         )
 
         # User creates a notification that is going to be send
-        # every time TELL goes up or down by 0.5 USD
+        # every time the security goes up or down by 0.5 USD
         notification_data = {
-            'symbol': 'TELL',
+            'symbol': info.symbol,
             'mic': 'XNAS',
             'change': 0.5,
             'property': Ticker.Properties.PRICE,
             'type': Notification.Types.EMAIL,
-            'title': 'TELL\'s price changed',
-            'content': 'TELL\'s price changed',
+            'title': f'{info.symbol}\'s price changed',
+            'content': f'{info.symbol}\'s price changed',
             'is_active': True,
         }
 
@@ -125,7 +130,7 @@ def test_api_workflow(client: APIClient):
         ticker_list = json.loads(response.content)
         assert response.status_code == status.HTTP_200_OK
         assert len(ticker_list['results']) == 1
-        tell = ticker_list['results'][0]
+        ticker = ticker_list['results'][0]
 
         # User creates a note to the ticker
         response = client.post(
@@ -133,7 +138,7 @@ def test_api_workflow(client: APIClient):
             {
                 'title': 'A very important note',
                 'content': 'Important content',
-                'ticker': tell['url'],
+                'ticker': ticker['url'],
             },
             format='json',
         )
@@ -152,11 +157,21 @@ def test_api_workflow(client: APIClient):
             and note_got['modified_at']
         )
 
-    # At least two users in order to ensure that no user can
-    # access others' data
-    user_workflow('user0', 'user0Te$tPass', 'user0@email.com')
-    user_workflow('user1', 'user1Te$tPass', 'user1@email.com')
-    user_workflow('user2', 'user2Te$tPass', 'user2@email.com')
+    # Execute the workflow
+    # At least two users in order to ensure that
+    # no user can access others data
+    info = {
+        'symbol': 'TELL',
+        'name': 'Tellurian Inc.',
+        'short_name': 'anything but not blank',
+        'description': 'anything but not blank',
+        'exchange': 'anything but not blank',
+    }
+    user_workflow('user0',  'user0Te$tPass', 'user0@email.com', info=TickerDto(**info))
+    info.update(symbol='MSFT', name='Microsoft Corporation')
+    user_workflow('user1', 'user1Te$tPass', 'user1@email.com', info=TickerDto(**info))
+    info.update(symbol='NIO', name='NIO')
+    user_workflow('user2', 'user2Te$tPass', 'user2@email.com', info=TickerDto(**info))
 
 
 def url_join(*args):

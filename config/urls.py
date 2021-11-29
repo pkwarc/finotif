@@ -15,29 +15,18 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from rest_framework import routers
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView
 )
 from rest_framework.documentation import include_docs_urls
-from finotif.notifications.views import (
-    UserViewSet,
-    StepNotificationViewSet,
-    TickerViewSet,
-    NoteViewSet
-)
+from finotif.notifications.urls import router
 
-router = routers.DefaultRouter()
-router.register(r'user', UserViewSet, basename='user')
-router.register(r'ticker', TickerViewSet)
-router.register(r'stepNotification', StepNotificationViewSet, basename='stepnotification')
-router.register(r'note', NoteViewSet, basename='note')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh'),
-    path('docs/', include_docs_urls(title='Stocker API'))
+    path('docs/', include_docs_urls(title='Finotif API'))
 ]

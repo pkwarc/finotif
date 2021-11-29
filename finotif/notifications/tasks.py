@@ -46,6 +46,7 @@ def send_push(notification):
 
 @shared_task
 def request_yahoo_api():
+    _logger.debug('Task: "request_yahoo_api"')
     tickers = (Ticker.objects
                .select_related('exchange')
                .filter(stepnotification__is_active=True)
