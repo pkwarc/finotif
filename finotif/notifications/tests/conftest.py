@@ -92,30 +92,3 @@ def step_notification(default_ticker, user):
         )
 
     return _produce
-
-
-@pytest.fixture
-def interval_notification(default_ticker, user):
-    default_title = default_ticker.name + ' price changed',
-    default_content = 'Some content about' + default_ticker.name
-
-    def _produce(
-            property,
-            type,
-            change,
-            is_active=True,
-            ticker=default_ticker,
-            title=default_title,
-            content=default_content
-    ):
-        return StepNotification.objects.create(
-            property=property,
-            type=type,
-            change=change,
-            user=user.get(),
-            ticker=ticker,
-            title=title,
-            content=content,
-        )
-
-    return _produce

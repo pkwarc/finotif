@@ -291,30 +291,3 @@ class StepNotification(Notification):
                 self.last_tick = tick
                 self.save()
         return should_send
-
-
-class IntervalNotification(Notification):
-    interval = models.DurationField(
-        help_text='Send a notification every [DD] [[HH:]MM:]ss[.uuuuuu] about the value of a property'
-    )
-    last_tick = models.ForeignKey(Tick, null=True, on_delete=models.CASCADE)
-
-    @classmethod
-    def save_notification(cls, notification_serializer):
-        notification, data = super().create_notification(notification_serializer)
-        interval = data['interval']
-        min_interval = conf.CRON_INTERVAL_SEC
-        if interval.total_seconds() < min_interval:
-            raise ValidationError(f'Enter an interval greater than {min_interval}')
-        if cls.objects.filter(
-                user=notification.user
-        ).filter(
-            interval=interval
-        ).filter(
-            ticker=notification.ticker
-        ).first():
-            raise ValidationError('Already exists')
-        notification.interval = data['interval']
-        notification.save()
-        return notification
-

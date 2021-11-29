@@ -5,7 +5,6 @@ from .models import (
     User,
     Ticker,
     StepNotification,
-    IntervalNotification,
     Note
 )
 
@@ -50,14 +49,6 @@ class StepNotificationSerializer(serializers.HyperlinkedModelSerializer):
                   'is_active', 'property', 'change', 'created_at', 'modified_at']
 
 
-class IntervalNotificationSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = IntervalNotification
-        read_only_fields = ['created_at', 'modified_at']
-        fields = ['id', 'url', 'title', 'content', 'ticker', 'type',
-                  'is_active', 'property', 'interval', 'created_at', 'modified_at']
-
-
 class CreateNotificationSerializer(serializers.ModelSerializer):
     symbol = serializers.CharField(help_text="The symbol of the ticker")
     mic = serializers.CharField(help_text='Market Identifier Code (MIC)')
@@ -77,14 +68,6 @@ class CreateStepNotificationSerializer(CreateNotificationSerializer,
         model = StepNotification
         fields = ['symbol', 'mic', 'title', 'content', 'is_active', 'type',
                   'property', 'change', 'user']
-
-
-class CreateIntervalNotificationSerializer(CreateNotificationSerializer,
-                                           serializers.ModelSerializer):
-    class Meta(CreateNotificationSerializer.Meta):
-        model = IntervalNotification
-        fields = ['symbol', 'mic', 'title', 'content', 'is_active', 'type',
-                  'property', 'interval', 'user']
 
 
 class NoteSerializer(serializers.HyperlinkedModelSerializer):

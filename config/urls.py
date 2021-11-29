@@ -1,4 +1,4 @@
-"""stocker URL Configuration
+"""finotif URL Configuration
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/3.2/topics/http/urls/
@@ -21,10 +21,9 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView
 )
 from rest_framework.documentation import include_docs_urls
-from stocker.notifications.views import (
+from finotif.notifications.views import (
     UserViewSet,
     StepNotificationViewSet,
-    IntervalNotificationViewSet,
     TickerViewSet,
     NoteViewSet
 )
@@ -33,7 +32,6 @@ router = routers.DefaultRouter()
 router.register(r'user', UserViewSet, basename='user')
 router.register(r'ticker', TickerViewSet)
 router.register(r'stepNotification', StepNotificationViewSet, basename='stepnotification')
-router.register(r'intervalNotification', IntervalNotificationViewSet, basename='intervalnotification')
 router.register(r'note', NoteViewSet, basename='note')
 
 urlpatterns = [

@@ -1,14 +1,13 @@
-from datetime import datetime as DateTime
 from django.core import mail
 from celery import shared_task
 from celery.utils.log import get_task_logger
 from .services import YahooTickerProvider
 from .models import (
     Notification,
-    IntervalNotification,
     Ticker,
     Tick,
 )
+
 
 _logger = get_task_logger(__name__)
 
@@ -43,36 +42,6 @@ def send_email(to: str, subject: str, content: str):
 def send_push(notification):
     # TODO:
     _logger.warning(f'No push sent')
-
-
-@shared_task
-def send_interval_notifications():
-    notifications = IntervalNotification.select_related(
-        'last_tick'
-    ).select_related(
-        'ticker__exchange'
-    ).filter(
-        is_active=True
-    )
-    now = DateTime.utcnow()
-    for notification in notifications:
-        if not notification.ticker.exchange.is_open():
-            continue
-        interval = notification.interval
-        last_time = notification.last_tick.created_at
-        if last_time + interval >= now:
-            send(notification)
-            last_tick = Tick.objects.filter(
-                ticker=notification.ticker
-            ).order_by('-pk').last()
-            if last_tick:
-                notification.last_tick = last_tick
-                notification.save()
-            else:
-                _logger.warning(
-                    f'Failed to find last_tick for '
-                    f'the IntervalNotification {notification}'
-                )
 
 
 @shared_task

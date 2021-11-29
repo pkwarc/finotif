@@ -20,7 +20,7 @@ _logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.tasks.send')
+@mock.patch('finotif.notifications.tasks.send')
 def test_price_went_up_by_step_send_notification(
         mock_send,
         step_notification,
@@ -42,7 +42,7 @@ def test_price_went_up_by_step_send_notification(
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.tasks.send')
+@mock.patch('finotif.notifications.tasks.send')
 def test_price_went_down_by_step_send_notification(
         mock_send,
         step_notification,
@@ -64,7 +64,7 @@ def test_price_went_down_by_step_send_notification(
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.tasks.send')
+@mock.patch('finotif.notifications.tasks.send')
 def test_price_changed_but_change_is_too_small_to_send(
         mock_send,
         step_notification,
@@ -86,7 +86,7 @@ def test_price_changed_but_change_is_too_small_to_send(
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.tasks.send')
+@mock.patch('finotif.notifications.tasks.send')
 def test_price_fluctuate_send_no_notification(
         mock_send,
         step_notification,
@@ -115,7 +115,7 @@ def test_price_fluctuate_send_no_notification(
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.tasks.send')
+@mock.patch('finotif.notifications.tasks.send')
 def test_price_changes_triggers_multiple_notifications(
         mock_send,
         step_notification,
@@ -142,7 +142,7 @@ def test_price_changes_triggers_multiple_notifications(
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.tasks.send_email')
+@mock.patch('finotif.notifications.tasks.send_email')
 def test_tasks_send_notification_send_email(
         mock_send_email,
         step_notification,
@@ -160,14 +160,10 @@ def test_tasks_send_notification_send_email(
     # assert
     mock_send_email.delay.assert_called_once()
 
-@pytest.mark.django_db
-def test_interval_notification():
-    notification =
-
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.models.Exchange.is_open')
-@mock.patch('stocker.notifications.services.YahooTickerProvider.current_state')
+@mock.patch('finotif.notifications.models.Exchange.is_open')
+@mock.patch('finotif.notifications.services.YahooTickerProvider.current_state')
 def test_save_requested_ticker_dto_state(mock_current_state, mock_is_open, tick, step_notification):
     # arrange
     expected_ticks = 5
@@ -207,7 +203,7 @@ def test_save_requested_ticker_dto_state(mock_current_state, mock_is_open, tick,
     ]
 )
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.models.datetime')
+@mock.patch('finotif.notifications.models.datetime')
 def test_exchange_is_open_at_time(mock_datetime, opens_at, closes_at, current_time, is_open):
     # any work day
     test_time = DateTime(year=2021, month=11, day=1, hour=15, minute=30,
@@ -229,7 +225,7 @@ def test_exchange_is_open_at_time(mock_datetime, opens_at, closes_at, current_ti
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.models.datetime')
+@mock.patch('finotif.notifications.models.datetime')
 def test_exchange_is_open_on_weekday(datetime_mock, nasdaq):
     def exchange_week_iterate(start, stop, assert_open):
         some_monday = DateTime(year=2021, month=11, day=1, hour=15, minute=30,

@@ -9,7 +9,6 @@ from rest_framework.test import APIClient
 from ..models import (
     Notification,
     StepNotification,
-    IntervalNotification,
     Ticker,
     User,
     Note
@@ -119,41 +118,6 @@ def test_api_workflow(client: APIClient):
             and data_got['url'] == expected_url
             and data_got['created_at']
             and data_got['modified_at']
-        )
-
-        # User creates another notification that is going to be send
-        # every 1 hour but only during market hours
-        notification_data = {
-            'symbol': 'TELL',
-            'mic': 'XNAS',
-            'interval': '01:00:00',
-            'property': Ticker.Properties.PRICE,
-            'type': Notification.Types.EMAIL,
-            'title': 'TELL\'s price changed',
-            'content': 'TELL\'s price changed',
-            'is_active': True,
-        }
-
-        response = client.post(
-            reverse('intervalnotification-list'), notification_data, format='json'
-        )
-
-        assert response.status_code == status.HTTP_201_CREATED
-        notification = IntervalNotification.objects.get(user=user)
-        expected_url = url_join(
-            TEST_SERVER, reverse('intervalnotification-list'), str(notification.id)
-        )
-        data_got = json.loads(response.content)
-        assert (
-                response.status_code == status.HTTP_201_CREATED
-                and data_got['interval'] == notification_data['interval']
-                and data_got['title'] == notification_data['title']
-                and data_got['property'] == notification_data['property']
-                and data_got['type'] == notification_data['type']
-                and data_got['is_active'] == notification_data['is_active']
-                and data_got['url'] == expected_url
-                and data_got['created_at']
-                and data_got['modified_at']
         )
 
         # User retrieves the list of tickers
