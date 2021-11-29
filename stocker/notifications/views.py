@@ -1,15 +1,25 @@
+import rest_framework.exceptions
+from django.core.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from .models import User, Ticker, StepNotification, Note
+from rest_framework.exceptions import ValidationError as RestValidationError
+from .models import (
+    User,
+    Ticker,
+    StepNotification,
+    IntervalNotification,
+    Note
+)
 from .serializers import (
     UserSerializer,
     TickerSerializer,
-    PriceStepNotificationSerializer,
-    PriceStepNotificationCreateSerializer,
+    StepNotificationSerializer,
+    IntervalNotificationSerializer,
+    CreateStepNotificationSerializer,
+    CreateIntervalNotificationSerializer,
     NoteSerializer,
 )
-from .services import create_price_step_notification
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -32,31 +42,62 @@ class TickerViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TickerSerializer
 
 
-class PriceStepNotificationViewSet(viewsets.ModelViewSet):
+class BaseNotificationViewSet(viewsets.ModelViewSet):
+    """Base class to be inherited from for Notification endpoints"""
     permission_classes = [IsAuthenticated]
 
-    default_serializer = PriceStepNotificationSerializer
-    serializers = {
-        "create": PriceStepNotificationCreateSerializer,
-    }
+    # default serializer to use
+    default_serializer = None
+
+    # pair of action_name:serializer
+    serializers = {}
 
     def get_queryset(self):
-        return StepNotification.objects.all().filter(user=self.request.user)
+        objects = self.get_notification_class().objects.all()
+        return objects.filter(user=self.request.user)
 
     def get_serializer_class(self):
         return self.serializers.get(self.action, self.default_serializer)
 
+    def get_notification_class(self):
+        """Has to return the concrete subclass of the Notification model"""
+        pass
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        notification = create_price_step_notification(user=request.user, data=serializer.data)
-        serializer = PriceStepNotificationSerializer(
-            notification, context={"request": request}
-        )
-        headers = self.get_success_headers(serializer.data)
-        return Response(
-            serializer.data, status=status.HTTP_201_CREATED, headers=headers
-        )
+        try:
+            notification = self.get_notification_class().save_notification(serializer)
+            Serializer = self.default_serializer
+            serializer = Serializer(
+                notification, context={"request": request}
+            )
+            headers = self.get_success_headers(serializer.data)
+            return Response(
+                serializer.data, status=status.HTTP_201_CREATED, headers=headers
+            )
+        except ValidationError as ex:
+            raise RestValidationError(detail=ex.message)
+
+
+class StepNotificationViewSet(BaseNotificationViewSet):
+    default_serializer = StepNotificationSerializer
+    serializers = {
+        "create": CreateStepNotificationSerializer
+    }
+
+    def get_notification_class(self):
+        return StepNotification
+
+
+class IntervalNotificationViewSet(BaseNotificationViewSet):
+    default_serializer = IntervalNotificationSerializer
+    serializers = {
+        "create": CreateIntervalNotificationSerializer
+    }
+
+    def get_notification_class(self):
+        return IntervalNotification
 
 
 class NoteViewSet(viewsets.ModelViewSet):

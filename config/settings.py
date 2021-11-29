@@ -152,6 +152,10 @@ CELERY_BEAT_SCHEDULE = {
     'request_yahoo_api': {
         'task': 'stocker.notifications.tasks.request_yahoo_api',
         'schedule': crontab(minute='*/1')
+    },
+    'send_interval_notifications': {
+        'task': 'stocker.notifications.tasks.send_interval_notifications',
+        'schedule': crontab(minute='*/1')
     }
 }
 

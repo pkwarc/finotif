@@ -7,103 +7,170 @@ from datetime import (
     timezone as TimeZone,
 )
 from unittest import mock
-from ..tasks import request_yahoo_api
+from .. import tasks
 from ..services import TickerStateDto
 from ..models import (
+    Tick,
     Exchange,
-    TickerState,
+    Ticker,
     Notification,
-    PriceStepNotificationState,
 )
 
 _logger = logging.getLogger(__name__)
 
 
 @pytest.mark.django_db
-def test_new_notification_set_starting_point(price_notification, ticker_state):
-    base_ticker_state = ticker_state(price=3.45)
-    step_notification = price_notification(
-        starting_point=base_ticker_state,
-        type=Notification.Types.EMAIL,
-        step=0.5
-    )
-
-    assert (PriceStepNotificationState.objects
-            .filter(notification=step_notification,
-                    last_step=base_ticker_state)
-            .get())
-
-
-@pytest.mark.django_db
-@mock.patch('stocker.notifications.tasks.send_email')
-def test_price_changed_send_email_notification(mock_send_email, price_notification, ticker_state):
+@mock.patch('stocker.notifications.tasks.send')
+def test_price_went_up_by_step_send_notification(
+        mock_send,
+        step_notification,
+        tick
+):
     # arrange
-    base_ticker_state = ticker_state(price=3.5)
-    step_notification = price_notification(
-        starting_point=base_ticker_state,
+    price_notification = step_notification(
+        change=0.5,
+        property=Ticker.Properties.PRICE,
         type=Notification.Types.EMAIL,
-        step=0.5
     )
+    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
 
-    # act
-    ticker_state(price=4.0)
+    # act (price rose by 0.5)
+    tick(value=4.0, property=Ticker.Properties.PRICE)
 
     # assert
-    mock_send_email.delay.assert_called_once()
+    mock_send.assert_called_once()
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.models.Notification.send')
-def test_price_changed_but_change_is_too_small_to_send(mock_send,
-                                                       price_notification,
-                                                       ticker_state):
+@mock.patch('stocker.notifications.tasks.send')
+def test_price_went_down_by_step_send_notification(
+        mock_send,
+        step_notification,
+        tick
+):
     # arrange
-    base_ticker_state = ticker_state(price=3.5)
-    step_notification = price_notification(
-        starting_point=base_ticker_state,
+    price_notification = step_notification(
+        change=0.5,
+        property=Ticker.Properties.PRICE,
         type=Notification.Types.EMAIL,
-        step=0.5
     )
+    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
+
+    # act (price went down by 0.5)
+    tick(value=3.0, property=Ticker.Properties.PRICE)
+
+    # assert (notification has been sent)
+    mock_send.assert_called_once()
+
+
+@pytest.mark.django_db
+@mock.patch('stocker.notifications.tasks.send')
+def test_price_changed_but_change_is_too_small_to_send(
+        mock_send,
+        step_notification,
+        tick
+):
+    # arrange
+    price_notification = step_notification(
+        change=0.5,
+        property=Ticker.Properties.PRICE,
+        type=Notification.Types.EMAIL,
+    )
+    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
 
     # act
-    ticker_state(price=3.99)
+    tick(value=3.99, property=Ticker.Properties.PRICE)
 
     # assert
     mock_send.assert_not_called()
 
 
 @pytest.mark.django_db
-@mock.patch('stocker.notifications.models.Notification.send')
-def test_multiple_price_changes_when_change_eq_step(mock_send,
-                                                    price_notification,
-                                                    ticker_state):
+@mock.patch('stocker.notifications.tasks.send')
+def test_price_fluctuate_send_no_notification(
+        mock_send,
+        step_notification,
+        tick
+):
     # arrange
-    number_of_changes = 10
-    step = 0.1
-    open_price = 3.5
-    base_ticker_state = ticker_state(price=open_price)
-    step_notification = price_notification(
-        starting_point=base_ticker_state,
+    notification = step_notification(
+        change=0.5,
+        property=Ticker.Properties.PRICE,
         type=Notification.Types.EMAIL,
-        step=step
     )
+    fluctuations = 5
+    fluct_value = 0.1
+    open_price = 3.5
+    price_tick = tick(value=open_price, property=Ticker.Properties.PRICE)
 
     # act
-    price = open_price
-    for i in range(number_of_changes):
-        price = price + step
-        ticker_state(price=price)
+    for i in range(1, fluctuations):
+        tick(value=open_price + i*fluct_value, property=Ticker.Properties.PRICE)
+
+    for i in range(1, fluctuations):
+        tick(value=open_price - i*fluct_value, property=Ticker.Properties.PRICE)
 
     # assert
-    assert mock_send.call_count == number_of_changes
+    mock_send.assert_not_called()
+
+
+@pytest.mark.django_db
+@mock.patch('stocker.notifications.tasks.send')
+def test_price_changes_triggers_multiple_notifications(
+        mock_send,
+        step_notification,
+        tick
+):
+    # arrange
+    notification = step_notification(
+        change=0.5,
+        property=Ticker.Properties.PRICE,
+        type=Notification.Types.EMAIL,
+    )
+    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
+
+    # act
+    tick(value=4.0, property=Ticker.Properties.PRICE)
+    tick(value=4.2, property=Ticker.Properties.PRICE)
+    tick(value=4.5, property=Ticker.Properties.PRICE)
+    tick(value=6.0, property=Ticker.Properties.PRICE)
+    tick(value=5.7, property=Ticker.Properties.PRICE)
+    tick(value=5.5, property=Ticker.Properties.PRICE)
+
+    # assert
+    assert mock_send.call_count == 4
+
+
+@pytest.mark.django_db
+@mock.patch('stocker.notifications.tasks.send_email')
+def test_tasks_send_notification_send_email(
+        mock_send_email,
+        step_notification,
+        tick
+):
+    # arrange
+    email_notification = step_notification(
+        change=0.5,
+        property=Ticker.Properties.PRICE,
+        type=Notification.Types.EMAIL,
+    )
+
+    tasks.send(email_notification)
+
+    # assert
+    mock_send_email.delay.assert_called_once()
+
+@pytest.mark.django_db
+def test_interval_notification():
+    notification =
 
 
 @pytest.mark.django_db
 @mock.patch('stocker.notifications.models.Exchange.is_open')
 @mock.patch('stocker.notifications.services.YahooTickerProvider.current_state')
-def test_save_requested_ticker_dto_state(mock_current_state, mock_is_open, ticker_state, price_notification):
+def test_save_requested_ticker_dto_state(mock_current_state, mock_is_open, tick, step_notification):
     # arrange
-    expected_states = 2
+    expected_ticks = 5
     mock_is_open.return_value = True
     # mock call to the external api
     mock_current_state.return_value = TickerStateDto(
@@ -114,18 +181,18 @@ def test_save_requested_ticker_dto_state(mock_current_state, mock_is_open, ticke
         bid_size=400,
         currency='USD'
     )
-    price_notification(
-        starting_point=ticker_state(price=3),
+    step_notification(
         type=Notification.Types.EMAIL,
-        step=0.5
+        property=Ticker.Properties.PRICE,
+        change=0.5
     )
 
     # act
-    request_yahoo_api()
+    tasks.request_yahoo_api()
 
     # assert
     mock_current_state.assert_called_once()
-    assert TickerState.objects.count() == expected_states
+    assert Tick.objects.count() == expected_ticks
 
 
 @pytest.mark.parametrize(
@@ -170,7 +237,6 @@ def test_exchange_is_open_on_weekday(datetime_mock, nasdaq):
         for day_number in range(start, stop):
             next_day = some_monday + TimeDelta(days=day_number)
             datetime_mock.utcnow.return_value = next_day
-            is_open = nasdaq.is_open()
             assert nasdaq.is_open() == assert_open
 
     # monday friday

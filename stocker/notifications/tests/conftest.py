@@ -3,8 +3,8 @@ from ..models import (
     User,
     Exchange,
     Ticker,
-    TickerState,
-    PriceStepNotification,
+    Tick,
+    StepNotification,
     Currency,
 )
 
@@ -40,6 +40,7 @@ def user():
                 email=f'test_user_{suffix}@email.com',
                 password=UserFactory.PASSWORD
             )
+
     return UserFactory()
 
 
@@ -49,15 +50,16 @@ def usd():
 
 
 @pytest.fixture
-def ticker_state(usd, default_ticker):
-    def _produce(price=10.0, ask=11.0, bid=9.0, ask_size=3000,
-                 bid_size=4000, currency=usd, ticker=default_ticker):
-        return TickerState.objects.create(
-            price=price,
-            ask=ask,
-            bid=bid,
-            ask_size=ask_size,
-            bid_size=bid_size,
+def tick(usd, default_ticker):
+    def _produce(
+            value,
+            property,
+            currency=usd,
+            ticker=default_ticker
+    ):
+        return Tick.objects.create(
+            value=value,
+            property=property,
             currency=currency,
             ticker=ticker
         )
@@ -66,20 +68,54 @@ def ticker_state(usd, default_ticker):
 
 
 @pytest.fixture
-def price_notification(default_ticker, user):
+def step_notification(default_ticker, user):
     default_title = default_ticker.name + ' price changed',
     default_content = 'Some content about' + default_ticker.name
 
-    def _produce(starting_point, type, step, ticker=default_ticker,
-                 title=default_title, content=default_content):
-        return PriceStepNotification.create(
-            starting_point=starting_point,
+    def _produce(
+            property,
+            type,
+            change,
+            is_active=True,
+            ticker=default_ticker,
+            title=default_title,
+            content=default_content
+    ):
+        return StepNotification.objects.create(
+            property=property,
             type=type,
+            change=change,
             user=user.get(),
             ticker=ticker,
             title=title,
             content=content,
-            step=step
+        )
+
+    return _produce
+
+
+@pytest.fixture
+def interval_notification(default_ticker, user):
+    default_title = default_ticker.name + ' price changed',
+    default_content = 'Some content about' + default_ticker.name
+
+    def _produce(
+            property,
+            type,
+            change,
+            is_active=True,
+            ticker=default_ticker,
+            title=default_title,
+            content=default_content
+    ):
+        return StepNotification.objects.create(
+            property=property,
+            type=type,
+            change=change,
+            user=user.get(),
+            ticker=ticker,
+            title=title,
+            content=content,
         )
 
     return _produce

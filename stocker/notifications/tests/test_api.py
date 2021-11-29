@@ -6,7 +6,14 @@ from functools import reduce
 from rest_framework.reverse import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from ..models import PriceStepNotification, User, Note
+from ..models import (
+    Notification,
+    StepNotification,
+    IntervalNotification,
+    Ticker,
+    User,
+    Note
+)
 
 TEST_SERVER = 'http://testserver'
 _logger = logging.getLogger(__name__)
@@ -25,7 +32,7 @@ def client():
         reverse('user-list'),
         reverse('note-list'),
         reverse('ticker-list'),
-        reverse('pricestepnotification-list'),
+        reverse('stepnotification-list'),
     ],
 )
 def test_if_not_loggedin_then_unauthorized(client, url):
@@ -83,28 +90,30 @@ def test_api_workflow(client: APIClient):
         # every time TELL goes up or down by 0.5 USD
         notification_data = {
             'symbol': 'TELL',
-            'step': 0.5,
+            'mic': 'XNAS',
+            'change': 0.5,
+            'property': Ticker.Properties.PRICE,
+            'type': Notification.Types.EMAIL,
             'title': 'TELL\'s price changed',
             'content': 'TELL\'s price changed',
-            'exchange': 'XNAS',
-            'type': 'em',
             'is_active': True,
         }
 
         response = client.post(
-            reverse('pricestepnotification-list'), notification_data, format='json'
+            reverse('stepnotification-list'), notification_data, format='json'
         )
 
         assert response.status_code == status.HTTP_201_CREATED
-        notification = PriceStepNotification.objects.get(user=user)
+        notification = StepNotification.objects.get(user=user)
         expected_url = url_join(
-            TEST_SERVER, reverse('pricestepnotification-list'), str(notification.id)
+            TEST_SERVER, reverse('stepnotification-list'), str(notification.id)
         )
         data_got = json.loads(response.content)
         assert (
             response.status_code == status.HTTP_201_CREATED
-            and data_got['step'] == notification_data['step']
+            and data_got['change'] == notification_data['change']
             and data_got['title'] == notification_data['title']
+            and data_got['property'] == notification_data['property']
             and data_got['type'] == notification_data['type']
             and data_got['is_active'] == notification_data['is_active']
             and data_got['url'] == expected_url
@@ -112,7 +121,42 @@ def test_api_workflow(client: APIClient):
             and data_got['modified_at']
         )
 
-        # User retrieves a list of tickers
+        # User creates another notification that is going to be send
+        # every 1 hour but only during market hours
+        notification_data = {
+            'symbol': 'TELL',
+            'mic': 'XNAS',
+            'interval': '01:00:00',
+            'property': Ticker.Properties.PRICE,
+            'type': Notification.Types.EMAIL,
+            'title': 'TELL\'s price changed',
+            'content': 'TELL\'s price changed',
+            'is_active': True,
+        }
+
+        response = client.post(
+            reverse('intervalnotification-list'), notification_data, format='json'
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        notification = IntervalNotification.objects.get(user=user)
+        expected_url = url_join(
+            TEST_SERVER, reverse('intervalnotification-list'), str(notification.id)
+        )
+        data_got = json.loads(response.content)
+        assert (
+                response.status_code == status.HTTP_201_CREATED
+                and data_got['interval'] == notification_data['interval']
+                and data_got['title'] == notification_data['title']
+                and data_got['property'] == notification_data['property']
+                and data_got['type'] == notification_data['type']
+                and data_got['is_active'] == notification_data['is_active']
+                and data_got['url'] == expected_url
+                and data_got['created_at']
+                and data_got['modified_at']
+        )
+
+        # User retrieves the list of tickers
         response = client.get(reverse('ticker-list'))
         ticker_list = json.loads(response.content)
         assert response.status_code == status.HTTP_200_OK

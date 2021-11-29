@@ -4,21 +4,21 @@ from rest_framework import (
 from .models import (
     User,
     Ticker,
-    Notification,
     StepNotification,
+    IntervalNotification,
     Note
 )
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
-
     class Meta:
         model = User
         fields = ['id', 'url', 'username', 'email',
                   'password', 'date_joined', 'last_login']
+        read_only_fields = ['date_joined', 'last_login']
         extra_kwargs = {
+            'password': {'write_only': True, 'min_length': 6},
             'email': {'required': True},
-            'password': {'write_only': True, 'min_length': 6}
         }
 
     def create(self, validated_data):
@@ -42,27 +42,49 @@ class TickerSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['id', 'url', 'symbol', 'short_name', 'name', 'description', 'notes']
 
 
-class PriceStepNotificationSerializer(serializers.HyperlinkedModelSerializer):
-
+class StepNotificationSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = StepNotification
+        read_only_fields = ['created_at', 'modified_at']
         fields = ['id', 'url', 'title', 'content', 'ticker', 'type',
-                  'is_active', 'value', 'created_at', 'modified_at']
+                  'is_active', 'property', 'change', 'created_at', 'modified_at']
 
 
-class PriceStepNotificationCreateSerializer(serializers.ModelSerializer):
+class IntervalNotificationSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = IntervalNotification
+        read_only_fields = ['created_at', 'modified_at']
+        fields = ['id', 'url', 'title', 'content', 'ticker', 'type',
+                  'is_active', 'property', 'interval', 'created_at', 'modified_at']
+
+
+class CreateNotificationSerializer(serializers.ModelSerializer):
     symbol = serializers.CharField(help_text="The symbol of the ticker")
-    exchange = serializers.CharField(help_text='Market Identifier Code (MIC)')
+    mic = serializers.CharField(help_text='Market Identifier Code (MIC)')
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
-        model = StepNotification
-        fields = ['title', 'content', 'is_active', 'type', 'exchange',
-                  'symbol', 'value', 'user']
+        read_only_fields = ['created_at', 'modified_at']
         extra_kwargs = {
             'is_active': {'required': True},
             'type': {'required': True}
         }
+
+
+class CreateStepNotificationSerializer(CreateNotificationSerializer,
+                                       serializers.ModelSerializer):
+    class Meta(CreateNotificationSerializer.Meta):
+        model = StepNotification
+        fields = ['symbol', 'mic', 'title', 'content', 'is_active', 'type',
+                  'property', 'change', 'user']
+
+
+class CreateIntervalNotificationSerializer(CreateNotificationSerializer,
+                                           serializers.ModelSerializer):
+    class Meta(CreateNotificationSerializer.Meta):
+        model = IntervalNotification
+        fields = ['symbol', 'mic', 'title', 'content', 'is_active', 'type',
+                  'property', 'interval', 'user']
 
 
 class NoteSerializer(serializers.HyperlinkedModelSerializer):

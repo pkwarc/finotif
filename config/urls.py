@@ -23,15 +23,17 @@ from rest_framework_simplejwt.views import (
 from rest_framework.documentation import include_docs_urls
 from stocker.notifications.views import (
     UserViewSet,
+    StepNotificationViewSet,
+    IntervalNotificationViewSet,
     TickerViewSet,
-    PriceStepNotificationViewSet,
     NoteViewSet
 )
 
 router = routers.DefaultRouter()
 router.register(r'user', UserViewSet, basename='user')
 router.register(r'ticker', TickerViewSet)
-router.register(r'priceStepNotification', PriceStepNotificationViewSet, basename='pricestepnotification')
+router.register(r'stepNotification', StepNotificationViewSet, basename='stepnotification')
+router.register(r'intervalNotification', IntervalNotificationViewSet, basename='intervalnotification')
 router.register(r'note', NoteViewSet, basename='note')
 
 urlpatterns = [

@@ -3,48 +3,47 @@ version: "3.4"
 
 services:
   postgres:
-    image: postgres:${POSTGRES_TAG}
+    image: postgres:${POSTGRES_TAG:-latest}
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
     volumes:
       - db_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_DB=${POSTGRES_NAME}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_DB=${POSTGRES_NAME:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
   rabbitmq:
-    image: rabbitmq:${BROKER_TAG}
+    image: rabbitmq:${BROKER_TAG:-latest}
     expose:
-      - "${BROKER_PORT}"
+      - "${BROKER_PORT:-5672}"
   app:
     image: pkwarc/stocker-app:latest
     build:
-      target: ${TARGET_ENV}
+      target: ${TARGET_ENV:-Target Environment}
       dockerfile: python_docker/Dockerfile
       context: .
       args:
-        - POETRY_VERSION=${POETRY_VERSION}
+        - POETRY_VERSION=${POETRY_VERSION:-1.1.10}
     expose:
-      - "${APP_PORT}"
+      - "${APP_PORT:-8080}"
     volumes:
       - static_data:/app/staticfiles
     environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - TARGET_ENV=${TARGET_ENV}
-      - APP_PORT=${APP_PORT}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_NAME=${POSTGRES_NAME}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - EMAIL_HOST=${EMAIL_HOST}
-      - EMAIL_PORT=${EMAIL_PORT}
-      - BROKER_HOST=${BROKER_HOST}
-      - BROKER_PORT=${BROKER_PORT}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-Set Django secret key}
+      - TARGET_ENV=${TARGET_ENV:?Set Target Environment}
+      - APP_PORT=${APP_PORT:-8080}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_NAME=${POSTGRES_NAME:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - EMAIL_USER=${EMAIL_USER:-user}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-user}
+      - EMAIL_HOST=${EMAIL_HOST:-user@ad.com}
+      - EMAIL_PORT=${EMAIL_PORT:-587}
+      - BROKER_HOST=rabbitmq
+      - BROKER_PORT=${BROKER_PORT:-5672}
     command: runserver
     depends_on:
       - "postgres"
@@ -52,24 +51,25 @@ services:
   celery:
     image: pkwarc/stocker-celery:latest
     build:
-      context: python_docker/Dockerfile
+      dockerfile: python_docker/Dockerfile
+      context: .
       args:
-        - POETRY_VERSION=${POETRY_VERSION}
+        - POETRY_VERSION=${POETRY_VERSION:-1.1.10}
     environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - TARGET_ENV=${TARGET_ENV}
-      - APP_PORT=${APP_PORT}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_NAME=${POSTGRES_NAME}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - EMAIL_HOST=${EMAIL_HOST}
-      - EMAIL_PORT=${EMAIL_PORT}
-      - BROKER_HOST=${BROKER_HOST}
-      - BROKER_PORT=${BROKER_PORT}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:?Set Django secret key}
+      - TARGET_ENV=${TARGET_ENV:?Set Target Environment}
+      - APP_PORT=${APP_PORT:-8080}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_NAME=${POSTGRES_NAME:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - EMAIL_USER=${EMAIL_USER:-user}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-user}
+      - EMAIL_HOST=${EMAIL_HOST:-user@ad.com}
+      - EMAIL_PORT=${EMAIL_PORT:-587}
+      - BROKER_HOST=rabbitmq
+      - BROKER_PORT=${BROKER_PORT:-5672}
     command: celery
     depends_on:
       - "rabbitmq"
@@ -78,10 +78,10 @@ services:
     volumes:
       - static_data:/staticfiles
     ports:
-      - "${NGINX_PORT}:${NGINX_PORT}"
+      - "${NGINX_PORT:-8000}:${NGINX_PORT:-8000}"
     environment:
-      - NGINX_PORT=${NGINX_PORT}
-      - APP_PORT=${APP_PORT}
+      - NGINX_PORT=${NGINX_PORT:-8000}
+      - APP_PORT=${APP_PORT:-8080}
     depends_on:
       - app
 

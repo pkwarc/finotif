@@ -2,20 +2,16 @@ import logging
 import dataclasses
 from datetime import datetime
 from django.db import models
-from django.db.models.signals import post_save
 from django.contrib.auth.models import AbstractUser
-from django.dispatch import receiver
 from django.core.validators import validate_email
 from django.utils.translation import gettext_lazy as _
-from rest_framework.exceptions import ValidationError
-from .services import  (
+from django.core.exceptions import ValidationError
+from .apps import NotificationsConfig as conf
+from .services import (
     YahooTickerProvider as TickerProvider,
     TickerStateDto
 )
-from . import tasks
 
-DECIMAL_MAX_DIGITS = 12
-DECIMAL_PRECISION = 2
 
 _logger = logging.getLogger(__name__)
 
@@ -120,8 +116,8 @@ class Ticker(TimestampedModel, DescriptiveModel):
     @classmethod
     def get_or_create(cls, symbol: str, mic: str):
         symbol = symbol.strip().upper()
-        ticker = Ticker.objects.first(symbol=symbol)
-        exchange = Exchange.objects.first(mic=mic.strip().upper())
+        ticker = Ticker.objects.filter(symbol=symbol).first()
+        exchange = Exchange.objects.filter(mic=mic.strip().upper()).first()
         if exchange is None:
             raise ValidationError(
                 f'Market Identifier Code (MIC) "{mic}" is not supported'
@@ -177,13 +173,14 @@ class Tick(CreatedAtModel):
     property = models.IntegerField(choices=Ticker.Properties.choices)
 
     @classmethod
-    def create_ticks(cls, state: TickerStateDto, ticker: Ticker):
+    def save_ticks(cls, state: TickerStateDto, ticker: Ticker):
         if not state or not ticker:
             return None
-        properties = [prop.lower() for value, prop in Ticker.Properties.choices]
+        properties = [prop.lower().replace(' ', '_')
+                      for value, prop in Ticker.Properties.choices]
         field_names = [field.name for field in dataclasses.fields(state)
-                       if field.type == int and field.name in properties]
-        currency = Currency.filter(symbol=state.currency.strip().upper()).first()
+                       if field.type in (int, float) and field.name in properties]
+        currency = Currency.objects.filter(symbol=state.currency.strip().upper()).first()
         if not currency:
             raise ValidationError(f'Currency ${state.currency} does not exist.')
 
@@ -195,7 +192,7 @@ class Tick(CreatedAtModel):
                     tick = cls.objects.create(
                         value=value,
                         ticker=ticker,
-                        currency=state.currency,
+                        currency=currency,
                         property=getattr(Ticker.Properties, name.upper())
                     )
                     ticks.append(tick)
@@ -203,14 +200,26 @@ class Tick(CreatedAtModel):
                 _logger.error(er)
         return ticks
 
+    def __str__(self):
+        return 'pk={0},property={1},value={2},created_at={3}'.format(
+            self.pk,
+            self.property,
+            self.value,
+            self.created_at
+        )
+
+
+class NotificationType(DescriptiveModel):
+    class Meta:
+        ordering = 'name',
+
 
 class Notification(TimestampedModel, TitleContentModel):
-    class Types(models.TextChoices):
-        EMAIL = 'em', 'Email'
-        PUSH = 'ph', 'Push'
+    class Types(models.IntegerChoices):
+        EMAIL = 0
+        PUSH = 1
 
-    type = models.CharField(
-        max_length=2,
+    type = models.IntegerField(
         choices=Types.choices,
         default=Types.EMAIL
     )
@@ -222,23 +231,15 @@ class Notification(TimestampedModel, TitleContentModel):
     class Meta:
         abstract = True
 
-    def send(self):
-        if self.type == Notification.Types.EMAIL:
-            tasks.send_email.delay(self.user.email, self.title, self.content)
-        elif self.type == Notification.Types.PUSH:
-            tasks.send_push.delay(self.user)
-        else:
-            _logger.warning(f'Cannot send notification - unknown type ${self.type}')
-
     @classmethod
     def create_notification(cls, notification_serializer):
         notification_serializer.is_valid(raise_exception=True)
         data = notification_serializer.validated_data
-        symbol = data['symbol']
-        mic = data['mic']
+        symbol = data.pop('symbol')
+        mic = data.pop('mic')
         ticker = Ticker.get_or_create(symbol, mic)
 
-        return Notification(
+        return cls(
             ticker=ticker,
             **data
         ), data
@@ -257,7 +258,7 @@ class StepNotification(Notification):
         help_text='Send the notification when a property of the ticker '
                   'increased/decreased by the value of this field'
     )
-    last_tick = models.ForeignKey(Tick, on_delete=models.CASCADE)
+    last_tick = models.ForeignKey(Tick, on_delete=models.CASCADE, null=True)
 
     @classmethod
     def save_notification(cls, notification_serializer):
@@ -281,14 +282,14 @@ class StepNotification(Notification):
     def should_send(self, tick: Tick) -> bool:
         should_send = False
         if self.property == tick.property:
-            if self.last_tick is not None:
+            if self.last_tick:
                 should_send = (
                     tick.value >= self.last_tick.value + self.change or
                     tick.value <= self.last_tick.value - self.change
                 )
-
-        self.last_tick = tick
-        self.save()
+            if not self.last_tick or should_send:
+                self.last_tick = tick
+                self.save()
         return should_send
 
 
@@ -296,35 +297,24 @@ class IntervalNotification(Notification):
     interval = models.DurationField(
         help_text='Send a notification every [DD] [[HH:]MM:]ss[.uuuuuu] about the value of a property'
     )
-    last_tick = models.ForeignKey(Tick, on_delete=models.CASCADE)
+    last_tick = models.ForeignKey(Tick, null=True, on_delete=models.CASCADE)
 
     @classmethod
     def save_notification(cls, notification_serializer):
         notification, data = super().create_notification(notification_serializer)
         interval = data['interval']
-        if interval > 0:
-            if cls.objects.filter(
-                    user=notification.user
-            ).filter(
-                interval=interval
-            ).filter(
-                ticker=notification.ticker
-            ).first():
-                raise ValidationError('Already exists')
-            notification.value = data['value']
-            notification.save()
-            return notification
-        else:
-            raise ValidationError('"interval" should be greater than 0')
+        min_interval = conf.CRON_INTERVAL_SEC
+        if interval.total_seconds() < min_interval:
+            raise ValidationError(f'Enter an interval greater than {min_interval}')
+        if cls.objects.filter(
+                user=notification.user
+        ).filter(
+            interval=interval
+        ).filter(
+            ticker=notification.ticker
+        ).first():
+            raise ValidationError('Already exists')
+        notification.interval = data['interval']
+        notification.save()
+        return notification
 
-
-@receiver(post_save, sender=Tick)
-def ticker_value_changed(sender, tick, **kwargs):
-    notifications = StepNotification.objects.filter(
-        ticker=tick.ticker
-    ).filter(
-        is_active=True
-    )
-    for notification in notifications:
-        if notification.should_send(tick):
-            notification.send()
