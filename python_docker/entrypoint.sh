@@ -28,7 +28,9 @@ elif [ "$1" = 'test' ]; then
     pytest
 elif [ "$1" = 'manage' ]; then
   python manage.py "${@:2}"
-elif [ "$1" = 'celery' ]; then
+elif [ "$1" = 'celery-beat' ]; then
+  celery -A config.celery beat --loglevel=INFO
+elif [ "$1" = 'celery-worker' ]; then
   celery -A config.celery worker --loglevel=INFO
 else
   exec "$@"

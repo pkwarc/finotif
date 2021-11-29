@@ -1,5 +1,21 @@
 
-version: "3.4"
+version: "3.7"
+
+x-pythonEnv: &pythonEnv
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-Set Django secret key}
+  TARGET_ENV: ${TARGET_ENV:?Set Target Environment}
+  APP_PORT: ${APP_PORT:-8080}
+  POSTGRES_USER: ${POSTGRES_USER:-postgres}
+  POSTGRES_NAME: ${POSTGRES_NAME:-postgres}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  EMAIL_USER: ${EMAIL_USER:-user}
+  EMAIL_PASSWORD: ${EMAIL_PASSWORD:-user}
+  EMAIL_HOST: ${EMAIL_HOST:-user@ad.com}
+  EMAIL_PORT: ${EMAIL_PORT:-587}
+  BROKER_HOST: redis
+  BROKER_PORT: ${BROKER_PORT:-6379}
 
 services:
   postgres:
@@ -31,49 +47,33 @@ services:
       - "${APP_PORT:-8080}"
     volumes:
       - static_data:/app/staticfiles
-    environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-Set Django secret key}
-      - TARGET_ENV=${TARGET_ENV:?Set Target Environment}
-      - APP_PORT=${APP_PORT:-8080}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_NAME=${POSTGRES_NAME:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - EMAIL_USER=${EMAIL_USER:-user}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-user}
-      - EMAIL_HOST=${EMAIL_HOST:-user@ad.com}
-      - EMAIL_PORT=${EMAIL_PORT:-587}
-      - BROKER_HOST=redis
-      - BROKER_PORT=${BROKER_PORT:-6379}
+    environment: *pythonEnv
     command: runserver
     depends_on:
       - "postgres"
       - "redis"
     restart: unless-stopped
-  celery:
+  celery-beat:
     image: pkwarc/stocker-celery:latest
     build:
       dockerfile: python_docker/Dockerfile
       context: .
       args:
         - POETRY_VERSION=${POETRY_VERSION:-1.1.10}
-    environment:
-      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:?Set Django secret key}
-      - TARGET_ENV=${TARGET_ENV:?Set Target Environment}
-      - APP_PORT=${APP_PORT:-8080}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_NAME=${POSTGRES_NAME:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - EMAIL_USER=${EMAIL_USER:-user}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-user}
-      - EMAIL_HOST=${EMAIL_HOST:-user@ad.com}
-      - EMAIL_PORT=${EMAIL_PORT:-587}
-      - BROKER_HOST=redis
-      - BROKER_PORT=${BROKER_PORT:-6379}
-    command: celery
+    environment: *pythonEnv
+    command: celery-beat
+    depends_on:
+      - "redis"
+    restart: unless-stopped
+  celery-worker:
+    image: pkwarc/stocker-celery:latest
+    build:
+      dockerfile: python_docker/Dockerfile
+      context: .
+      args:
+        - POETRY_VERSION=${POETRY_VERSION:-1.1.10}
+    environment: *pythonEnv
+    command: celery-worker
     depends_on:
       - "redis"
     restart: unless-stopped
