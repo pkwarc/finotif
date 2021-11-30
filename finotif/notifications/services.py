@@ -1,7 +1,6 @@
 import logging
 from dataclasses import dataclass
 from yfinance import utils
-from django.contrib.auth.models import AbstractUser
 from typing import Optional
 
 

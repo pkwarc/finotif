@@ -1,7 +1,7 @@
 
 version: "3.7"
 
-x-pythonEnv: &pythonEnv
+x-python-env: &pythonEnv
   DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-Set Django secret key}
   TARGET_ENV: ${TARGET_ENV:?Set Target Environment}
   APP_PORT: ${APP_PORT:-8080}
