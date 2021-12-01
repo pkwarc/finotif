@@ -4,7 +4,7 @@ from datetime import datetime
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import validate_email
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
 from .services import (
     YahooTickerProvider as TickerProvider,
@@ -89,7 +89,6 @@ class Exchange(TimestampedModel, DescriptiveModel):
 
     def is_open(self):
         now = datetime.utcnow()
-
         if now.weekday() in (5, 6):
             return False
         time = datetime.utcnow().time()
@@ -97,13 +96,6 @@ class Exchange(TimestampedModel, DescriptiveModel):
 
 
 class Ticker(TimestampedModel, DescriptiveModel):
-    class Properties(models.IntegerChoices):
-        PRICE = 0
-        VOLUME = 1
-        ASK = 2
-        ASK_SIZE = 3
-        BID = 4
-        BID_SIZE = 5
 
     symbol = models.TextField(unique=True)
     short_name = models.TextField()
@@ -161,6 +153,20 @@ class Currency(models.Model):
         return self.symbol
 
 
+class TickerProperty(models.IntegerChoices):
+    PRICE = 0, _('PRICE'),
+    VOLUME = 1, _('VOLUME'),
+    ASK = 2, _('ASK'),
+    ASK_SIZE = 3, _('ASK_SIZE')
+    BID = 4, _('BID')
+    BID_SIZE = 5, _('BID_SIZE')
+
+
+class NotificationType(models.IntegerChoices):
+    EMAIL = 0, _('EMAIL')
+    PUSH = 1, _('PUSH')
+
+
 class Tick(CreatedAtModel):
     """The smallest recognized value by which a property of a security may fluctuate"""
 
@@ -169,14 +175,14 @@ class Tick(CreatedAtModel):
 
     ticker = models.ForeignKey(Ticker, on_delete=models.CASCADE)
     currency = models.ForeignKey(Currency, on_delete=models.CASCADE)
-    property = models.IntegerField(choices=Ticker.Properties.choices)
+    property = models.IntegerField(choices=TickerProperty.choices)
 
     @classmethod
     def save_ticks(cls, state: TickerStateDto, ticker: Ticker):
         if not state or not ticker:
             return None
         properties = [prop.lower().replace(' ', '_')
-                      for value, prop in Ticker.Properties.choices]
+                      for value, prop in TickerProperty.choices]
         field_names = [field.name for field in dataclasses.fields(state)
                        if field.type in (int, float) and field.name in properties]
         currency = Currency.objects.filter(symbol=state.currency.strip().upper()).first()
@@ -192,7 +198,7 @@ class Tick(CreatedAtModel):
                         value=value,
                         ticker=ticker,
                         currency=currency,
-                        property=getattr(Ticker.Properties, name.upper())
+                        property=getattr(TickerProperty, name.upper())
                     )
                     ticks.append(tick)
             except (ValueError, AttributeError) as er:
@@ -208,22 +214,14 @@ class Tick(CreatedAtModel):
         )
 
 
-class NotificationType(DescriptiveModel):
-    class Meta:
-        ordering = 'name',
-
-
 class Notification(TimestampedModel, TitleContentModel):
-    class Types(models.IntegerChoices):
-        EMAIL = 0
-        PUSH = 1
 
     type = models.IntegerField(
-        choices=Types.choices,
-        default=Types.EMAIL
+        choices=NotificationType.choices,
+        default=NotificationType.EMAIL
     )
     is_active = models.BooleanField(default=True)
-    property = models.IntegerField(choices=Ticker.Properties.choices)
+    property = models.IntegerField(choices=TickerProperty.choices)
     ticker = models.ForeignKey(Ticker, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
@@ -231,7 +229,7 @@ class Notification(TimestampedModel, TitleContentModel):
         abstract = True
 
     @classmethod
-    def create_notification(cls, notification_serializer):
+    def init_notification(cls, notification_serializer):
         notification_serializer.is_valid(raise_exception=True)
         data = notification_serializer.validated_data
         symbol = data.pop('symbol')
@@ -261,7 +259,7 @@ class StepNotification(Notification):
 
     @classmethod
     def save_notification(cls, notification_serializer):
-        notification, data = super().create_notification(notification_serializer)
+        notification, data = super().init_notification(notification_serializer)
         change = data['change']
         if change > 0:
             if cls.objects.filter(

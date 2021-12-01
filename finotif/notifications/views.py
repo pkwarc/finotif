@@ -1,4 +1,3 @@
-import rest_framework.exceptions
 from django.core.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework import viewsets, status
@@ -17,6 +16,7 @@ from .serializers import (
     CreateStepNotificationSerializer,
     NoteSerializer,
 )
+from .schemas import AppSchema
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -42,6 +42,7 @@ class TickerViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class StepNotificationViewSet(viewsets.ModelViewSet):
+    schema = AppSchema()
     permission_classes = [IsAuthenticated]
 
     default_serializer = StepNotificationSerializer

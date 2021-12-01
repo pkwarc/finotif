@@ -9,11 +9,12 @@ from datetime import (
 from unittest import mock
 from .. import tasks
 from ..services import TickerStateDto
+from ..serializers import DisplayIntChoiceField
 from ..models import (
     Tick,
     Exchange,
-    Ticker,
-    Notification,
+    TickerProperty,
+    NotificationType
 )
 
 _logger = logging.getLogger(__name__)
@@ -29,13 +30,13 @@ def test_price_went_up_by_step_send_notification(
     # arrange
     price_notification = step_notification(
         change=0.5,
-        property=Ticker.Properties.PRICE,
-        type=Notification.Types.EMAIL,
+        property=TickerProperty.PRICE,
+        type=NotificationType.EMAIL,
     )
-    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
+    price_tick = tick(value=3.5, property=TickerProperty.PRICE)
 
     # act (price rose by 0.5)
-    tick(value=4.0, property=Ticker.Properties.PRICE)
+    tick(value=4.0, property=TickerProperty.PRICE)
 
     # assert
     mock_send.assert_called_once()
@@ -51,13 +52,13 @@ def test_price_went_down_by_step_send_notification(
     # arrange
     price_notification = step_notification(
         change=0.5,
-        property=Ticker.Properties.PRICE,
-        type=Notification.Types.EMAIL,
+        property=TickerProperty.PRICE,
+        type=NotificationType.EMAIL,
     )
-    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
+    price_tick = tick(value=3.5, property=TickerProperty.PRICE)
 
     # act (price went down by 0.5)
-    tick(value=3.0, property=Ticker.Properties.PRICE)
+    tick(value=3.0, property=TickerProperty.PRICE)
 
     # assert (notification has been sent)
     mock_send.assert_called_once()
@@ -73,13 +74,13 @@ def test_price_changed_but_change_is_too_small_to_send(
     # arrange
     price_notification = step_notification(
         change=0.5,
-        property=Ticker.Properties.PRICE,
-        type=Notification.Types.EMAIL,
+        property=TickerProperty.PRICE,
+        type=NotificationType.EMAIL,
     )
-    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
+    price_tick = tick(value=3.5, property=TickerProperty.PRICE)
 
     # act
-    tick(value=3.99, property=Ticker.Properties.PRICE)
+    tick(value=3.99, property=TickerProperty.PRICE)
 
     # assert
     mock_send.assert_not_called()
@@ -95,20 +96,20 @@ def test_price_fluctuate_send_no_notification(
     # arrange
     notification = step_notification(
         change=0.5,
-        property=Ticker.Properties.PRICE,
-        type=Notification.Types.EMAIL,
+        property=TickerProperty.PRICE,
+        type=NotificationType.EMAIL,
     )
     fluctuations = 5
     fluct_value = 0.1
     open_price = 3.5
-    price_tick = tick(value=open_price, property=Ticker.Properties.PRICE)
+    price_tick = tick(value=open_price, property=TickerProperty.PRICE)
 
     # act
     for i in range(1, fluctuations):
-        tick(value=open_price + i*fluct_value, property=Ticker.Properties.PRICE)
+        tick(value=open_price + i*fluct_value, property=TickerProperty.PRICE)
 
     for i in range(1, fluctuations):
-        tick(value=open_price - i*fluct_value, property=Ticker.Properties.PRICE)
+        tick(value=open_price - i*fluct_value, property=TickerProperty.PRICE)
 
     # assert
     mock_send.assert_not_called()
@@ -124,18 +125,18 @@ def test_price_changes_triggers_multiple_notifications(
     # arrange
     notification = step_notification(
         change=0.5,
-        property=Ticker.Properties.PRICE,
-        type=Notification.Types.EMAIL,
+        property=TickerProperty.PRICE,
+        type=NotificationType.EMAIL,
     )
-    price_tick = tick(value=3.5, property=Ticker.Properties.PRICE)
+    price_tick = tick(value=3.5, property=TickerProperty.PRICE)
 
     # act
-    tick(value=4.0, property=Ticker.Properties.PRICE)
-    tick(value=4.2, property=Ticker.Properties.PRICE)
-    tick(value=4.5, property=Ticker.Properties.PRICE)
-    tick(value=6.0, property=Ticker.Properties.PRICE)
-    tick(value=5.7, property=Ticker.Properties.PRICE)
-    tick(value=5.5, property=Ticker.Properties.PRICE)
+    tick(value=4.0, property=TickerProperty.PRICE)
+    tick(value=4.2, property=TickerProperty.PRICE)
+    tick(value=4.5, property=TickerProperty.PRICE)
+    tick(value=6.0, property=TickerProperty.PRICE)
+    tick(value=5.7, property=TickerProperty.PRICE)
+    tick(value=5.5, property=TickerProperty.PRICE)
 
     # assert
     assert mock_send.call_count == 4
@@ -151,8 +152,8 @@ def test_tasks_send_notification_send_email(
     # arrange
     email_notification = step_notification(
         change=0.5,
-        property=Ticker.Properties.PRICE,
-        type=Notification.Types.EMAIL,
+        property=TickerProperty.PRICE,
+        type=NotificationType.EMAIL,
     )
 
     tasks.send(email_notification)
@@ -178,8 +179,8 @@ def test_save_requested_ticker_dto_state(mock_current_state, mock_is_open, tick,
         currency='USD'
     )
     step_notification(
-        type=Notification.Types.EMAIL,
-        property=Ticker.Properties.PRICE,
+        type=NotificationType.EMAIL,
+        property=TickerProperty.PRICE,
         change=0.5
     )
 
@@ -242,3 +243,14 @@ def test_exchange_is_open_on_weekday(datetime_mock, nasdaq):
     # saturday, sunday
     weekend = (5, 7)
     exchange_week_iterate(*weekend, False)
+
+
+@pytest.mark.parametrize(('choices', 'strvalue', 'choice'), [
+    (TickerProperty, 'PRICE', TickerProperty.PRICE),
+    (TickerProperty, 'VOLUME', TickerProperty.VOLUME),
+    (NotificationType, 'EMAIL', NotificationType.EMAIL),
+])
+def test_serializers_display_int_choice_field_as_string(choices, strvalue, choice):
+    field = DisplayIntChoiceField(choices.choices)
+    assert field.to_internal_value(strvalue) == choice
+    assert field.to_representation(choice) == strvalue

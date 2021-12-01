@@ -1,12 +1,38 @@
 from rest_framework import (
     serializers,
 )
+from rest_framework.fields import to_choices_dict, flatten_choices_dict
+from rest_framework.serializers import ChoiceField
 from .models import (
     User,
     Ticker,
     StepNotification,
-    Note
+    Note,
+    NotificationType,
+    TickerProperty,
 )
+
+
+class DisplayIntChoiceField(serializers.ChoiceField):
+
+    def __init__(self, choices, **kwargs):
+        super().__init__(choices, **kwargs)
+        self.label_value = {
+            label: value for value, label in self.choices.items()
+        }
+
+    def to_internal_value(self, data):
+        if data == '' and self.allow_blank:
+            return ''
+        try:
+            return self.label_value[str(data)]
+        except KeyError:
+            self.fail('invalid_choice', input=data)
+
+    def to_representation(self, value):
+        if value in ('', None):
+            return value
+        return self.choices.get(int(value), value)
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -42,6 +68,9 @@ class TickerSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class StepNotificationSerializer(serializers.HyperlinkedModelSerializer):
+    property = DisplayIntChoiceField(TickerProperty.choices)
+    type = DisplayIntChoiceField(NotificationType.choices)
+
     class Meta:
         model = StepNotification
         read_only_fields = ['created_at', 'modified_at']
@@ -49,25 +78,22 @@ class StepNotificationSerializer(serializers.HyperlinkedModelSerializer):
                   'is_active', 'property', 'change', 'created_at', 'modified_at']
 
 
-class CreateNotificationSerializer(serializers.ModelSerializer):
+class CreateStepNotificationSerializer(serializers.ModelSerializer):
+    property = DisplayIntChoiceField(TickerProperty.choices)
+    type = DisplayIntChoiceField(NotificationType.choices)
     symbol = serializers.CharField(help_text="The symbol of the ticker")
     mic = serializers.CharField(help_text='Market Identifier Code (MIC)')
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
 
     class Meta:
+        model = StepNotification
+        fields = ['symbol', 'mic', 'title', 'content', 'is_active', 'type',
+                  'property', 'change', 'user']
         read_only_fields = ['created_at', 'modified_at']
         extra_kwargs = {
             'is_active': {'required': True},
             'type': {'required': True}
         }
-
-
-class CreateStepNotificationSerializer(CreateNotificationSerializer,
-                                       serializers.ModelSerializer):
-    class Meta(CreateNotificationSerializer.Meta):
-        model = StepNotification
-        fields = ['symbol', 'mic', 'title', 'content', 'is_active', 'type',
-                  'property', 'change', 'user']
 
 
 class NoteSerializer(serializers.HyperlinkedModelSerializer):

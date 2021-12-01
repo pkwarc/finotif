@@ -11,6 +11,7 @@ _logger = logging.getLogger(__name__)
 class TickerStateDto:
     currency: str = ''
     price: float = 0
+    volume: float = 0
     ask: float = 0
     bid: float = 0
     ask_size: float = 0
@@ -42,6 +43,7 @@ class YahooTickerProvider:
             try:
                 state = TickerStateDto(
                     price=data['financialData']['currentPrice'],
+                    volume=data['summaryDetail']['volume'],
                     ask=data['summaryDetail']['ask'],
                     bid=data['summaryDetail']['bid'],
                     ask_size=data['summaryDetail']['askSize'],
@@ -56,11 +58,10 @@ class YahooTickerProvider:
                     exchange=data['price']['exchangeName'].upper(),
                     state=state
                 )
-                self._cached = ticker
                 return ticker
             except KeyError:
-                msg = f'Error during parsing {self!r}'
-                _logger.error(msg + f' {data!r}')
+                msg = f'Error during parsing {self}'
+                _logger.error(f'{msg} {data}')
         return None
 
     def info(self) -> Optional[TickerDto]:

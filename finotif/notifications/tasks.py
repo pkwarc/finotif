@@ -3,7 +3,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 from .services import YahooTickerProvider
 from .models import (
-    Notification,
+    NotificationType,
     Ticker,
     Tick,
 )
@@ -14,13 +14,13 @@ _logger = get_task_logger(__name__)
 
 def send(notification):
     type = notification.type
-    if type == Notification.Types.EMAIL:
+    if type == NotificationType.EMAIL:
         send_email.delay(
             notification.user.email,
             notification.title,
             notification.content
         )
-    elif type == Notification.Types.PUSH:
+    elif type == NotificationType.PUSH:
         send_push.delay(notification)
     else:
         _logger.warning(f'Cannot send notification - unknown type {type}')

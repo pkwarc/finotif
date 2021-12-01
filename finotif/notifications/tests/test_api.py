@@ -8,9 +8,8 @@ from rest_framework.reverse import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 from ..models import (
-    Notification,
     StepNotification,
-    Ticker,
+    TickerProperty,
     User,
     Note
 )
@@ -96,8 +95,8 @@ def test_api_workflow(mock_info, client):
             'symbol': info.symbol,
             'mic': 'XNAS',
             'change': 0.5,
-            'property': Ticker.Properties.PRICE,
-            'type': Notification.Types.EMAIL,
+            'property': TickerProperty.PRICE.name,
+            'type': 'EMAIL',
             'title': f'{info.symbol}\'s price changed',
             'content': f'{info.symbol}\'s price changed',
             'is_active': True,
