@@ -17,6 +17,8 @@ services:
       - "${APP_PORT:-8080}:${APP_PORT:-8080}"
     volumes:
       - ./:/app
+    healthcheck:
+      test: /bin/true
   redis:
     ports:
       - "${BROKER_PORT:-6379}:${BROKER_PORT:-6379}"

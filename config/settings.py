@@ -35,7 +35,13 @@ USE_X_FORWARDED_HOST = True
 INSTALLED_APPS = [
     'finotif.notifications',
     'rest_framework',
-    'django_extensions',
+    'health_check',
+    'health_check.db',
+    'health_check.cache',
+    'health_check.storage',
+    'health_check.contrib.migrations',
+    'health_check.contrib.celery_ping',
+    'health_check.contrib.redis',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -147,7 +153,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 BROKER_HOST = os.environ.get("BROKER_HOST")
 BROKER_PORT = os.environ.get("BROKER_PORT")
 
-CELERY_BROKER_URL = f'redis://{BROKER_HOST}:{BROKER_PORT}'
+# Required for health-check
+REDIS_URL = f'redis://{BROKER_HOST}:{BROKER_PORT}'
+
+CELERY_BROKER_URL = REDIS_URL
 CELERY_BEAT_SCHEDULE = {
     'request_yahoo_api': {
         'task': 'finotif.notifications.tasks.request_yahoo_api',

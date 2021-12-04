@@ -1,8 +1,6 @@
 from rest_framework import (
     serializers,
 )
-from rest_framework.fields import to_choices_dict, flatten_choices_dict
-from rest_framework.serializers import ChoiceField
 from .models import (
     User,
     Ticker,
@@ -14,7 +12,7 @@ from .models import (
 
 
 class DisplayIntChoiceField(serializers.ChoiceField):
-
+    """Allows the api client to use fields of the type IntegerChoices as strings"""
     def __init__(self, choices, **kwargs):
         super().__init__(choices, **kwargs)
         self.label_value = {
@@ -33,6 +31,17 @@ class DisplayIntChoiceField(serializers.ChoiceField):
         if value in ('', None):
             return value
         return self.choices.get(int(value), value)
+
+
+class PkDefault:
+    requires_context = True
+
+    def __call__(self, serializer_field):
+        request_data = serializer_field.context['request'].data
+        return request_data.get('pk', None)
+
+    def __repr__(self):
+        return '%s()' % self.__class__.__name__
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -78,17 +87,18 @@ class StepNotificationSerializer(serializers.HyperlinkedModelSerializer):
                   'is_active', 'property', 'change', 'created_at', 'modified_at']
 
 
-class CreateStepNotificationSerializer(serializers.ModelSerializer):
+class SaveStepNotificationSerializer(serializers.ModelSerializer):
     property = DisplayIntChoiceField(TickerProperty.choices)
     type = DisplayIntChoiceField(NotificationType.choices)
     symbol = serializers.CharField(help_text="The symbol of the ticker")
     mic = serializers.CharField(help_text='Market Identifier Code (MIC)')
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    pk = serializers.HiddenField(default=PkDefault())
 
     class Meta:
         model = StepNotification
-        fields = ['symbol', 'mic', 'title', 'content', 'is_active', 'type',
-                  'property', 'change', 'user']
+        fields = ['pk', 'symbol', 'mic', 'title', 'content', 'is_active',
+                  'type', 'property', 'change', 'user']
         read_only_fields = ['created_at', 'modified_at']
         extra_kwargs = {
             'is_active': {'required': True},

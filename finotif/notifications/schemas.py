@@ -33,7 +33,7 @@ class AppSchema(AutoSchema):
             schema=coreschema.Enum(
                 enum=[label for _, label in NotificationType.choices],
                 title='Type',
-                description='The type of message to send.'
+                description='The type of notification to send.'
             )
         )
         custom_fields.append(property_choices)

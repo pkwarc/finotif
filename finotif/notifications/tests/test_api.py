@@ -10,6 +10,7 @@ from rest_framework.test import APIClient
 from ..models import (
     StepNotification,
     TickerProperty,
+    NotificationType,
     User,
     Note
 )
@@ -37,6 +38,12 @@ def client():
 )
 def test_if_not_loggedin_then_unauthorized(client, url):
     assert client.get(url).status_code == status.HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+def test_healthcheck(client):
+    response = client.get('/ht/?format=json')
+    assert response.status_code == status.HTTP_200_OK
 
 
 @pytest.mark.django_db
@@ -96,7 +103,7 @@ def test_api_workflow(mock_info, client):
             'mic': 'XNAS',
             'change': 0.5,
             'property': TickerProperty.PRICE.name,
-            'type': 'EMAIL',
+            'type': NotificationType.EMAIL.name,
             'title': f'{info.symbol}\'s price changed',
             'content': f'{info.symbol}\'s price changed',
             'is_active': True,
@@ -122,6 +129,17 @@ def test_api_workflow(mock_info, client):
             and data_got['url'] == expected_url
             and data_got['created_at']
             and data_got['modified_at']
+        )
+
+        # User updates the notification
+        notification_data['type'] = NotificationType.PUSH.name
+        response = client.put(data_got['url'], notification_data, format='json')
+        data_got = json.loads(response.content)
+        notification = StepNotification.objects.get(pk=data_got['id'])
+        assert (
+            response.status_code == status.HTTP_200_OK
+            and data_got['type'] == notification_data['type']
+            and notification.type == NotificationType.PUSH
         )
 
         # User retrieves the list of tickers

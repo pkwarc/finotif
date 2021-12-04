@@ -3,7 +3,7 @@ from .views import (
     UserViewSet,
     StepNotificationViewSet,
     TickerViewSet,
-    NoteViewSet
+    NoteViewSet,
 )
 
 router = routers.DefaultRouter()

@@ -15,6 +15,11 @@ from .services import (
 _logger = logging.getLogger(__name__)
 
 
+def validate_greater_than_zero(num=0):
+    if num <= 0:
+        raise ValidationError(f'{num} is not greater than 0.')
+
+
 class User(AbstractUser):
     email = models.CharField(
         _('email address'),
@@ -228,19 +233,6 @@ class Notification(TimestampedModel, TitleContentModel):
     class Meta:
         abstract = True
 
-    @classmethod
-    def init_notification(cls, notification_serializer):
-        notification_serializer.is_valid(raise_exception=True)
-        data = notification_serializer.validated_data
-        symbol = data.pop('symbol')
-        mic = data.pop('mic')
-        ticker = Ticker.get_or_create(symbol, mic)
-
-        return cls(
-            ticker=ticker,
-            **data
-        ), data
-
     def __str__(self):
         return 'pk={0},title={1},type={2},is_active={3}'.format(
             self.pk,
@@ -253,28 +245,33 @@ class Notification(TimestampedModel, TitleContentModel):
 class StepNotification(Notification):
     change = models.FloatField(
         help_text='Send the notification when a property of the ticker '
-                  'increased/decreased by the value of this field'
+                  'increased/decreased by the value of this field',
+        validators=(validate_greater_than_zero,)
     )
     last_tick = models.ForeignKey(Tick, on_delete=models.CASCADE, null=True)
 
     @classmethod
     def save_notification(cls, notification_serializer):
-        notification, data = super().init_notification(notification_serializer)
-        change = data['change']
-        if change > 0:
-            if cls.objects.filter(
-                user=notification.user
-            ).filter(
-                change=change
-            ).filter(
-                ticker=notification.ticker
-            ).first():
-                raise ValidationError('Already exists')
-            notification.change = change
-            notification.save()
-            return notification
+        notification_serializer.is_valid(raise_exception=True)
+        data = notification_serializer.validated_data
+        ticker = Ticker.get_or_create(data.pop('symbol'), data.pop('mic'))
+        pk = data.pop('pk')
+
+        exists_query = cls.objects.filter(
+            user=data['user']
+        ).filter(
+            change=data['change']
+        ).filter(
+            ticker=ticker
+        ).exclude(
+            pk=pk
+        )
+        if exists_query.first():
+            raise ValidationError('Already exists')
         else:
-            raise ValidationError('"change" should be greater than 0')
+            defaults = dict(**data, ticker=ticker)
+            obj, created = cls.objects.update_or_create(id=pk, defaults=defaults)
+            return obj
 
     def should_send(self, tick: Tick) -> bool:
         should_send = False

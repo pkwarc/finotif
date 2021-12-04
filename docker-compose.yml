@@ -1,6 +1,4 @@
 
-version: "3.7"
-
 x-python-env: &pythonEnv
   DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-Set Django secret key}
   TARGET_ENV: ${TARGET_ENV:?Set Target Environment}
@@ -53,6 +51,12 @@ services:
       - "postgres"
       - "redis"
     restart: unless-stopped
+    healthcheck:
+      test: "${APP_HEALTHCHECK}:-curl localhost:8080/api/ht/"
+      interval: "60s"
+      timeout: "3s"
+      start_period: "10s"
+      retries: 3
   celery-beat:
     image: pkwarc/stocker-celery:latest
     build:
