@@ -21,7 +21,6 @@ RUN apt-get update \
     curl \
     build-essential
 
-
 # Install Poetry - respects $POETRY_VERSION & $POETRY_HOME
 ARG POETRY_VERSION
 RUN curl -sSL https://raw.githubusercontent.com/sdispater/poetry/master/get-poetry.py | python
@@ -51,6 +50,9 @@ ENTRYPOINT ./python_docker/entrypoint-dev.sh $0 $@
 
 
 FROM python-base as production
+# default docker-compose healthcheck requires curl
+RUN apt-get update && apt-get install -y curl
+
 COPY --from=builder-base $VENV_PATH $VENV_PATH
 COPY . /app
 WORKDIR /app

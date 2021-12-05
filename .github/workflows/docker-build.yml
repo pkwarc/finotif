@@ -1,10 +1,7 @@
 name: Build docker images
-on:
-  push:
-    branches:
-      - master
+on: [push]
 jobs:
-  run-tests:
+  build-images:
     runs-on: ubuntu-latest
     env:
       DOCKER_USER: ${{ secrets.FINOTIF_DOCKER_USERNAME }}

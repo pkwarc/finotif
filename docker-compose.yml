@@ -52,7 +52,7 @@ services:
       - redis
     restart: unless-stopped
     healthcheck:
-      test: "${APP_HEALTHCHECK:-curl localhost:8080/api/ht/}"
+      test: "${APP_HEALTHCHECK:-curl localhost:8080/api/ht/?format=json}"
       interval: "60s"
       timeout: "3s"
       start_period: "10s"
