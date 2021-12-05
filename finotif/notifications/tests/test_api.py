@@ -42,7 +42,7 @@ def test_if_not_loggedin_then_unauthorized(client, url):
 
 @pytest.mark.django_db
 def test_healthcheck(client):
-    response = client.get('/ht/?format=json')
+    response = client.get(reverse("health_check") + '?format=json')
     assert response.status_code == status.HTTP_200_OK
 
 

@@ -17,7 +17,6 @@ from django.contrib import admin
 from django.urls import (
     path,
     include,
-    re_path
 )
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
@@ -25,6 +24,7 @@ from rest_framework_simplejwt.views import (
 )
 from rest_framework.documentation import include_docs_urls
 from finotif.notifications.urls import router
+from health_check.views import MainView
 
 
 urlpatterns = [
@@ -32,6 +32,6 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/docs/', include_docs_urls(title='Finotif API')),
-    re_path('api/ht/', include('health_check.urls'))
+    path('api/ht/', MainView.as_view(), name='health_check'),
+    path('api/docs/', include_docs_urls(title='Finotif API'))
 ]

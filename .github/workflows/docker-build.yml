@@ -7,18 +7,18 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
     env:
-      DOCKER_USER: ${{ secrets.STOCKER_DOCKER_USERNAME }}
-      DOCKER_PASS: ${{ secrets.STOCKER_DOCKER_TOKEN }}
+      DOCKER_USER: ${{ secrets.FINOTIF_DOCKER_USERNAME }}
+      DOCKER_PASS: ${{ secrets.FINOTIF_DOCKER_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Build images and run the app
-        run: docker-compose --env-file ./.github/.env.github up -d
+        run: docker-compose -f docker-compose.yml --env-file ./.github/.env.github up -d
       - name: Stop and remove containers
-        run: docker-compose --env-file ./.github/.env.github down --volumes
+        run: docker-compose -f docker-compose.yml --env-file ./.github/.env.github down --volumes
       - name: Run tests
-        run: docker-compose --env-file ./.github/.env.github run app test
+        run: docker-compose -f docker-compose.yml --env-file ./.github/.env.github run app test
       - name: Setup docker
         run: docker login --username=$DOCKER_USER --password=$DOCKER_PASS
       - name: Push images to the dockerhub
-        run: docker-compose --env-file ./.github/.env.github push
+        run: docker-compose -f docker-compose.yml --env-file ./.github/.env.github push

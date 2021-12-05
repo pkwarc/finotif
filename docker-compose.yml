@@ -34,7 +34,7 @@ services:
       - "${BROKER_PORT:-6379}"
     restart: unless-stopped
   app:
-    image: pkwarc/stocker-app:latest
+    image: pkwarc/finotif-python-${TARGET_ENV:-Target Environment}
     build:
       target: ${TARGET_ENV:-Target Environment}
       dockerfile: python_docker/Dockerfile
@@ -48,38 +48,28 @@ services:
     environment: *pythonEnv
     command: runserver
     depends_on:
-      - "postgres"
-      - "redis"
+      - postgres
+      - redis
     restart: unless-stopped
     healthcheck:
-      test: "${APP_HEALTHCHECK}:-curl localhost:8080/api/ht/"
+      test: "${APP_HEALTHCHECK:-curl localhost:8080/api/ht/}"
       interval: "60s"
       timeout: "3s"
       start_period: "10s"
       retries: 3
   celery-beat:
-    image: pkwarc/stocker-celery:latest
-    build:
-      dockerfile: python_docker/Dockerfile
-      context: .
-      args:
-        - POETRY_VERSION=${POETRY_VERSION:-1.1.10}
+    image: pkwarc/finotif-python-${TARGET_ENV:-Target Environment}
     environment: *pythonEnv
     command: celery-beat
     depends_on:
-      - "redis"
+      - app
     restart: unless-stopped
   celery-worker:
-    image: pkwarc/stocker-celery:latest
-    build:
-      dockerfile: python_docker/Dockerfile
-      context: .
-      args:
-        - POETRY_VERSION=${POETRY_VERSION:-1.1.10}
+    image: pkwarc/finotif-python-${TARGET_ENV:-Target Environment}
     environment: *pythonEnv
     command: celery-worker
     depends_on:
-      - "redis"
+      - app
     restart: unless-stopped
   nginx:
     build:

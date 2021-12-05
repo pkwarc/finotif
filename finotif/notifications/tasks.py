@@ -8,7 +8,6 @@ from .models import (
     Tick,
 )
 
-
 _logger = get_task_logger(__name__)
 
 

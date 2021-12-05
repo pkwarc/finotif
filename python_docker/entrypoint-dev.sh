@@ -10,7 +10,6 @@ printf $Green"*******************************\n"
 
 
 if [ "$1" = 'runserver' ]; then
-
   python manage.py collectstatic --no-input
   python manage.py makemigrations notifications --no-input
   python manage.py migrate --no-input
