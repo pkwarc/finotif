@@ -23,6 +23,16 @@ _logger = logging.getLogger(__name__)
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    """
+    read:
+    Show user info.
+
+    create:
+    Register a user.
+
+    update:
+    Update a user.
+    """
     permission_classes = [IsAuthenticated]
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -37,6 +47,13 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 class TickerViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    list:
+    view all tickers associated with the notifications created by the current user.
+
+    read:
+    Show a ticker.
+    """
     permission_classes = [IsAuthenticated]
     serializer_class = TickerSerializer
 
@@ -45,6 +62,22 @@ class TickerViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class StepNotificationViewSet(viewsets.ModelViewSet):
+    """
+    list:
+    View notifications created by the current user.
+
+    read:
+    Show a notification.
+
+    create:
+    Create a new notification.
+
+    update:
+    Update a notification.
+
+    delete:
+    Delete a notification.
+    """
     schema = AppSchema()
     permission_classes = [IsAuthenticated]
     default_serializer = StepNotificationSerializer
@@ -96,6 +129,22 @@ class StepNotificationViewSet(viewsets.ModelViewSet):
 
 
 class NoteViewSet(viewsets.ModelViewSet):
+    """
+    list:
+    View notes created by the current user.
+
+    read:
+    Show a note.
+
+    create:
+    Create a new note and assign it to the ticker.
+
+    update:
+    Update a note.
+
+    delete:
+    Delete a note.
+    """
     permission_classes = [IsAuthenticated]
     serializer_class = NoteSerializer
 

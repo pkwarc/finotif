@@ -72,6 +72,7 @@ services:
       - app
     restart: unless-stopped
   nginx:
+    image: pkwarc/finotif-nginx-${TARGET_ENV:-Target Environment}
     build:
       context: .
       dockerfile: nginx/Dockerfile
