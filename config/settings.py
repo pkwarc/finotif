@@ -27,7 +27,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('TARGET_ENV') == 'development'
 
-hosts = [host for host in os.environ.get('ALLOWED_HOSTS', '') if host]
+hosts = [host for host in os.environ.get('ALLOWED_HOSTS', '').split(',') if host]
 ALLOWED_HOSTS = [*hosts, 'localhost', '127.0.0.1', '[::1]']
 USE_X_FORWARDED_HOST = True
 
