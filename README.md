@@ -1,6 +1,6 @@
 
 # Finotif
-###REST API for monitoring stock market data. 
+### REST API for monitoring stock market data. 
 [![Build docker images](https://github.com/pkwarc/finotif/actions/workflows/docker-build.yml/badge.svg)](https://github.com/pkwarc/finotif/actions/workflows/docker-build.yml)
 ***
 **NOTE** - The project is still under development
